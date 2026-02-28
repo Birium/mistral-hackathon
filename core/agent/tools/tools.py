@@ -4,11 +4,11 @@ All vault tools — one file, nine tools.
 tree   → real implementation via core/functions/tree
 read   → real implementation (filesystem read + line numbering)
 search → real implementation via core/functions/search (BM25 + semantic)
-write  → dummy
+write  → real implementation via core/functions/write (update-only)
 edit   → dummy
 append → dummy
 move   → dummy
-delete → dummy
+delete → real implementation via core/functions/delete (update-only)
 concat → dummy (search-only)
 
 All path arguments are resolved against VAULT_PATH.
@@ -28,6 +28,7 @@ from functions.tree import tree as _tree_impl
 from functions.delete import delete as _delete_impl
 from functions.search import search as _search_impl
 from functions.write import write as _write_impl
+from functions.read import read as _read_impl
 
 
 
@@ -54,50 +55,30 @@ def tree(path: str = "vault/", depth: Optional[int] = None) -> str:
 
 
 def read(paths: str, head: Optional[int] = None, tail: Optional[int] = None) -> str:
-    """Read a file from the vault and return its content with line numbers.
+    """Read one or more files or folders from the vault, with line numbers.
 
     Args:
-        paths: Path relative to vault root (e.g. 'overview.md' or
-               'vault/projects/startup-x/state.md').
-        head: Approximate token budget from the start of the file.
-        tail: Approximate token budget from the end of the file.
+        paths: A single vault path or a JSON array of paths. Each path may be
+               a file or a folder (folder = all direct files, non-recursive).
+        head: Approximate token budget from the start of each file.
+        tail: Approximate token budget from the end of each file.
+              head and tail are mutually exclusive.
     """
-    target = _resolve_path(paths)
+    import json
 
-    if not target.exists():
-        return f"[READ ERROR] Path not found: '{paths}'"
+    # Allow LLM to pass a JSON array as a string
+    if isinstance(paths, str) and paths.strip().startswith("["):
+        try:
+            paths = json.loads(paths)
+        except json.JSONDecodeError:
+            pass  # treat as single string path
 
     try:
-        content = target.read_text(encoding="utf-8")
+        return _read_impl(paths=paths, head=head, tail=tail)
+    except ValueError as e:
+        return f"[READ ERROR] {e}"
     except (OSError, PermissionError) as e:
-        return f"[READ ERROR] Could not read '{paths}': {e}"
-
-    lines = content.splitlines()
-
-    # Apply head / tail budget (approx 4 chars per token)
-    if head is not None:
-        budget = head * 4
-        selected, total = [], 0
-        for line in lines:
-            total += len(line) + 1
-            if total > budget:
-                break
-            selected.append(line)
-        lines = selected
-    elif tail is not None:
-        budget = tail * 4
-        selected, total = [], 0
-        for line in reversed(lines):
-            total += len(line) + 1
-            if total > budget:
-                break
-            selected.insert(0, line)
-        lines = selected
-
-    width = len(str(max(len(lines), 1)))
-    formatted = "\n".join(f"{i + 1:<{width}}  | {line}" for i, line in enumerate(lines))
-
-    return f"```{paths}\n{formatted}\n```"
+        return f"[READ ERROR] {e}"
 
 
 # ---------------------------------------------------------------------------
