@@ -126,3 +126,25 @@
 -   **Mise à jour et Simplification des Agents :**
     -   **[`agent/search_agent.py` & `agent/update_agent.py`] :** Injection des nouvelles listes `SEARCH_TOOLS` et `UPDATE_TOOLS` dans l'initialisation des agents respectifs, garantissant que l'agent de recherche ne peut physiquement pas altérer le vault.
     -   **Refactoring de `_load_vault_context` :** Simplification drastique de la méthode. Puisque le nouvel outil `read` retourne désormais le contenu pré-formaté avec des blocs Markdown et le nom du fichier, les ajouts manuels d'en-têtes (`## overview.md\n`) ont été retirés. Les appels aux fichiers de contexte (`overview.md`, `tree.md`, `profile.md`) sont maintenant de simples concaténations directes. Le *lazy import* de la fonction `read` a également été remonté au niveau du module.
+
+### ✅ **Phase 7 : Modularisation des Prompts Système & Finalisation du Search Agent**
+
+-   **Architecture des Prompts (DRY & Modularité) :**
+    -   **Stratégie de factorisation :** Adoption d'une approche modulaire pour la gestion des *system prompts*. Au lieu de dupliquer les descriptions de l'environnement et des outils dans chaque agent, ces blocs textuels sont extraits dans des fichiers de constantes partagées. Cela garantit une cohérence absolue entre l'`UpdateAgent` et le `SearchAgent` et facilite la maintenance future.
+    -   **[`prompts/env_prompt.py`] :** Création de ce module pour stocker les constantes contextuelles communes :
+        -   `ENVIRONMENT_PROMPT` : Description exhaustive de l'architecture du vault (rôle de chaque fichier, indexation QMD vs lecture directe).
+        -   `AGENTIC_MODEL_PROMPT` : Définition de la boucle autonome (raisonnement, appels d'outils, condition d'arrêt).
+        -   `INITIAL_CONTEXT_PROMPT` : Explication des trois fichiers chargés au démarrage (`overview`, `tree`, `profile`) et comment s'en servir pour s'orienter sans coût.
+    -   **[`prompts/tools_prompt.py`] :** Centralisation des descriptions stratégiques des outils (le *quand* et le *comment*, pas la signature technique). Implémentation des constantes pour les outils de lecture et navigation :
+        -   `SEARCH_TOOL_PROMPT` : Stratégies `fast` (BM25) vs `deep` (sémantique), usage des scopes.
+        -   `READ_TOOL_PROMPT` : Gestion des gros fichiers (`head`/`tail`) et lecture de dossiers.
+        -   `TREE_TOOL_PROMPT` : Usage pour l'exploration structurelle fine.
+        -   `CONCAT_TOOL_PROMPT` : Instructions pour l'assemblage final de la réponse (spécifique au Search, mais stocké ici pour cohérence).
+
+-   **Finalisation du Prompt Search Agent :**
+    -   **[`prompts/search_prompt.py`] :** Réécriture complète du fichier pour assembler dynamiquement le prompt final via des f-strings.
+    -   **Structure composite :** Le prompt combine désormais les constantes importées (`env_prompt`, `tools_prompt`) avec les sections spécifiques à l'agent de recherche :
+        -   `<identity>` : Définition stricte du rôle *read-only* et de l'objectif "What does the user need to know?".
+        -   `<search-strategy>` : Documentation des patterns de recherche multi-pass adaptés au type de question (temporelle, statut, historique, cross-projet, vague).
+        -   `<rules>` : Invariants absolus (jamais écrire, jamais inventer, jamais halluciner des paths).
+        -   `<output>` : Format de sortie strict en deux parties (Overview rédigée + Fichiers concaténés).
