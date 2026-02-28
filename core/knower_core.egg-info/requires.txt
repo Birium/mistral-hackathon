@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+mcp[cli]
+watchdog
+python-frontmatter
+pyyaml
+httpx
+sse-starlette
+openai
+pydantic-settings
+langchain<1.0.0,>=0.3.26
+langchain-community==0.3.27
+langchain-core==0.3.81
+langchain-openai==0.3.8
