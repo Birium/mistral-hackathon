@@ -93,6 +93,65 @@ update_tokens("vault/notes/foo.md")
 print(format_tokens(read_tokens("vault/notes/foo.md")))  # e.g. "9.3k"
 ```
 
+## Workflows
+
+### New file
+
+Call `update_created` once immediately after the file is written. Then update tokens.
+
+```python
+from pathlib import Path
+from functions.frontmatter import update_created, update_tokens, write_frontmatter
+
+path = Path("vault/notes/foo.md")
+
+# Write initial frontmatter + body
+write_frontmatter(path, data={}, body="# My Note\n\nContent here.")
+
+# Stamp creation time (call exactly once)
+update_created(path)
+
+# Compute and store token count
+update_tokens(path)
+```
+
+### File modification
+
+Call both `update_updated` and `update_tokens` whenever the file body changes.
+
+```python
+from functions.frontmatter import update_updated, update_tokens
+
+path = "vault/notes/foo.md"
+
+# ... write new body content to the file ...
+
+update_updated(path)   # stamp modification time
+update_tokens(path)    # recount tokens from full file
+```
+
+### Display all metadata
+
+Read all three fields and format for output (this is what `tryme.py frontmatter` does).
+
+```python
+from functions.frontmatter import read_created, read_updated, read_tokens, format_tokens
+
+path = "vault/notes/foo.md"
+
+print(f"created:  {read_created(path)}")
+print(f"updated:  {read_updated(path)}")
+
+tokens = read_tokens(path)
+print(f"tokens:   {tokens} ({format_tokens(tokens)})")
+# tokens:   9300 (9.3k)
+```
+
+## Constraints
+
+- **`update_created` must be called exactly once per file.** Calling it again overwrites the original creation timestamp.
+- **`count_tokens` is approximate** (~4 chars/token). To use a real tokenizer, replace the implementation in `tokens/count.py` — the signature `(str) -> int` must stay the same.
+
 ## Error handling
 
 All read/write functions catch exceptions internally and print a warning prefixed with the function name (e.g. `[read_frontmatter] error ...`). They never raise — callers get `{}`, `None`, or `0` on failure.
