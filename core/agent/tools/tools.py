@@ -6,8 +6,8 @@ read   → real implementation (filesystem read + line numbering)
 search → real implementation via core/functions/search (BM25 + semantic)
 write  → real implementation via core/functions/write (update-only)
 edit   → dummy
-append → dummy
-move   → dummy
+append → real implementation via core/functions/appender (update-only)
+move   → real implementation via core/functions/move (update-only)
 delete → real implementation via core/functions/delete (update-only)
 concat → dummy (search-only)
 
@@ -30,6 +30,7 @@ from functions.search import search as _search_impl
 from functions.write import write as _write_impl
 from functions.read import read as _read_impl
 from functions.move import move as _move_impl
+from functions.appender import append as _append_impl
 
 
 
@@ -121,7 +122,7 @@ def search(
 
 
 # ---------------------------------------------------------------------------
-# write — dummy (update-only)
+# write — real implementation (update-only)
 # ---------------------------------------------------------------------------
 
 
@@ -158,7 +159,7 @@ def edit(path: str, old_content: str, new_content: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# append — dummy (update-only)
+# append — real implementation (update-only)
 # ---------------------------------------------------------------------------
 
 
@@ -166,16 +167,20 @@ def append(path: str, content: str, position: str = "top") -> str:
     """Insert a markdown block at the top or bottom of a file without reading it.
 
     Args:
-        path: Vault path of the target file.
-        content: Complete markdown block to insert.
-        position: 'top' to prepend (after frontmatter), 'bottom' to append.
+        path: Vault path of the target file. Created if it does not exist.
+        content: Complete markdown block to insert. Include frontmatter if creating.
+        position: 'top' to insert after frontmatter, 'bottom' to append at end.
     """
-    preview = content[:60].replace("\n", "\\n") + ("..." if len(content) > 60 else "")
-    return f"[DUMMY APPEND] Inserted at {position} of '{path}': \"{preview}\""
+    try:
+        return _append_impl(path=path, content=content, position=position)
+    except ValueError as e:
+        return f"[APPEND ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[APPEND ERROR] Could not write '{path}': {e}"
 
 
 # ---------------------------------------------------------------------------
-# move — dummy (update-only)
+# move — real implementation (update-only)
 # ---------------------------------------------------------------------------
 
 
@@ -195,7 +200,7 @@ def move(from_path: str, to_path: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# delete — dummy (update-only)
+# delete — real implementation (update-only)
 # ---------------------------------------------------------------------------
 
 
