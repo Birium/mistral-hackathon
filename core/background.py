@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import qmd as qmd_client
 
 from functions.frontmatter.tokens import update_tokens
@@ -39,11 +40,14 @@ def run(path: str) -> None:
     asyncio.run_coroutine_threadsafe(_handle(path), _loop)
 
 async def _handle(path: str) -> None:
-    mark_writing(path)
-    try:
-        update_tokens(path)
-    finally:
-        unmark_writing(path)
+    # if it's not a new file, update file frontmatter
+    if os.stat(path).st_birthtime != os.path.getmtime(path):
+        mark_writing(path)
+        try:
+            update_tokens(path)
+        finally:
+            unmark_writing(path)
+
     ok = await qmd_client.reindex()
     if not ok:
         logger.error(f"[background] reindex failed for {path}, skipping reembed")
