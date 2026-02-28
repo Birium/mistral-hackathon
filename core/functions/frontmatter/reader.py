@@ -11,12 +11,21 @@ except ImportError:
 from .utils import iter_frontmatter_lines
 
 
-def read_frontmatter(path: Union[str, Path]) -> dict:
+def read_frontmatter(path: Union[str, Path], line: Union[int, None] = None) -> dict:
     """Read and parse YAML frontmatter from a Markdown file.
 
-    Returns an empty dict if no frontmatter block is found.
+    If `line` is given (zero-indexed, matching FrontMatterSchema), reads only
+    that line and returns a single-key dict. Returns {} if the line is not found.
+
+    Without `line`, returns the full frontmatter as a dict (empty dict if none).
     """
     try:
+        if line is not None:
+            with open(path, encoding="utf-8") as f:
+                for i, raw in enumerate(f):
+                    if i == line:
+                        return yaml.load(raw, Loader=Loader) or {}
+            return {}
         with open(path, encoding="utf-8") as f:
             first = f.readline()
             if first.rstrip("\n") != "---":
