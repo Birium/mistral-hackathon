@@ -19,8 +19,9 @@ dependencies = [
   "langchain-community==0.3.27",
   "langchain-core==0.3.81",
   "langchain-openai==0.3.8",
+  "pytest>=9.0.2",
+  "pytest-asyncio",
 ]
-
 
 [build-system]
 requires = ["setuptools>=72", "wheel"]
@@ -28,4 +29,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["api*", "mcp_server*", "agent*"]
+include = ["api*", "mcp_server*", "agent*", "functions*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"

@@ -21,28 +21,30 @@ def write(path: str, content: str) -> str:
     return f"written: {path}"
 
 
-async def search(query: str, mode: str = "fast", scope: str = "") -> str:
-    """
-    Search the vault using QMD.
-    mode: "fast" (BM25) or "deep" (semantic + rerank)
-    scope: "" (whole vault) or "project:<name>"
-    """
+async def search(
+    queries: list[str],
+    mode: str = "fast",
+    scopes: list[str] | None = None,
+) -> str:
+    """Search the vault. mode: fast (BM25) or deep (semantic+rerank)."""
+    from functions.search import search as search_fn
+
     if mode not in ("fast", "deep"):
-        return f"[search error] invalid mode '{mode}'; use 'fast' or 'deep'"
+        return f"[search error] invalid mode '{mode}'"
+    if not queries:
+        return "[search error] queries must be a non-empty list"
 
     try:
-        results = await qmd_client.search(query, mode=mode, scope=scope)
+        results = await search_fn(queries=queries, mode=mode, scopes=scopes)
     except Exception as e:
         return f"[search error] {e}"
 
     if not results:
-        return f"No results found for: {query}"
+        return f"No results found for: {queries}"
 
-    lines = [f"## Search results for `{query}`\n"]
+    lines = [f"## Search results for `{queries}`\n"]
     for r in results:
-        docid = r.get("docid", "?")
-        snippet = r.get("snippet") or r.get("context", "")
-        score = r.get("score", "")
-        lines.append(f"**{docid}** (score: {score})\n{snippet}\n")
+        lines.append(f"### {r.path} (score: {r.score}, lines: {r.lines})")
+        lines.append(f"```\n{r.chunk_with_context}\n```\n")
 
     return "\n".join(lines)

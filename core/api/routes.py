@@ -15,10 +15,24 @@ class UpdatePayload(BaseModel):
 
 
 class SearchPayload(BaseModel):
-    query: str
+    queries: list[str] = Field(min_length=1)
     mode: str = Field(default="fast", pattern="^(fast|deep)$")
-    scope: str = ""
-    limit: int = Field(default=5, ge=1, le=20)
+    scopes: list[str] | None = None
+    limit: int = Field(default=10, ge=1, le=50)
+
+
+@router.post("/search")
+async def search(payload: SearchPayload):
+    from functions.search import search as search_fn
+    from dataclasses import asdict
+
+    results = await search_fn(
+        queries=payload.queries,
+        mode=payload.mode,
+        scopes=payload.scopes,
+        limit=payload.limit,
+    )
+    return {"queries": payload.queries, "results": [asdict(r) for r in results]}
 
 
 @router.post("/update")
@@ -26,17 +40,6 @@ async def update(payload: UpdatePayload):
     update_id = f"update-{uuid.uuid4().hex[:8]}"
     await queue.put({"id": update_id, "payload": payload})
     return {"status": "accepted", "id": update_id}
-
-
-@router.post("/search")
-async def search(payload: SearchPayload):
-    results = await qmd.search(
-        query=payload.query,
-        mode=payload.mode,
-        scope=payload.scope,
-        limit=payload.limit,
-    )
-    return {"query": payload.query, "results": results}
 
 
 @router.get("/sse")

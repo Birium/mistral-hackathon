@@ -14,14 +14,14 @@ import {
 } from "@/components/ui/select"
 
 type SearchResult = {
-  docid: string
-  snippet?: string
-  context?: string
-  score?: number
+  path: string
+  score: number
+  lines: string
+  chunk_with_context: string
 }
 
 type SearchResponse = {
-  query: string
+  queries: string[]
   results: SearchResult[]
 }
 
@@ -44,7 +44,7 @@ export default function App() {
 
   const fetchTree = async () => {
     try {
-      const res = await fetch('/tree')
+      const res = await fetch("/tree")
       if (res.ok) {
         const data = await res.json()
         setTree(data.tree)
@@ -57,7 +57,7 @@ export default function App() {
   useEffect(() => {
     fetchTree()
 
-    const eventSource = new EventSource('/sse')
+    const eventSource = new EventSource("/sse")
 
     eventSource.onmessage = (event) => {
       try {
@@ -84,7 +84,7 @@ export default function App() {
     setIsUpdating(true)
     setUpdateStatus("Sending…")
     try {
-      const res = await fetch('/update', {
+      const res = await fetch("/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: updateContent }),
@@ -104,14 +104,18 @@ export default function App() {
     setIsSearching(true)
     setSearchError("")
     setSearchResponse(null)
+
+    const scopeTrimmed = searchScope.trim()
+
     try {
-      const res = await fetch('/search', {
+      const res = await fetch("/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: searchQuery,
+          queries: [searchQuery.trim()],
           mode: searchMode,
-          scope: searchScope.trim(),
+          scopes: scopeTrimmed ? [scopeTrimmed] : null,
+          limit: 10,
         }),
       })
       if (!res.ok) {
@@ -128,12 +132,13 @@ export default function App() {
     }
   }
 
-  const handleKeyDown = (callback: () => void) => (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      callback()
+  const handleKeyDown =
+    (callback: () => void) => (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault()
+        callback()
+      }
     }
-  }
 
   return (
     <div className="flex h-screen w-screen bg-background text-foreground overflow-hidden">
@@ -188,7 +193,7 @@ export default function App() {
               </div>
 
               <Input
-                placeholder="Scope (optional): project:name"
+                placeholder="Scope (optional): vault/projects/startup-x/*"
                 value={searchScope}
                 onChange={(e) => setSearchScope(e.target.value)}
               />
@@ -202,7 +207,9 @@ export default function App() {
               <div className="space-y-3 mt-4">
                 <p className="text-xs text-muted-foreground">
                   {searchResponse.results.length} result(s) for{" "}
-                  <span className="font-mono">"{searchResponse.query}"</span>
+                  <span className="font-mono">
+                    "{searchResponse.queries.join(", ")}"
+                  </span>
                 </p>
 
                 {searchResponse.results.length === 0 ? (
@@ -211,24 +218,25 @@ export default function App() {
                   searchResponse.results.map((r, i) => (
                     <div
                       key={i}
-                      className="border rounded-md p-4 bg-muted/30 space-y-1"
+                      className="border rounded-md p-4 bg-muted/30 space-y-2"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span className="text-sm font-mono font-medium">
-                          {r.docid}
+                          {r.path}
                         </span>
-                        {r.score !== undefined && (
+                        <div className="flex gap-2">
+                          {r.lines && r.lines !== "?" && (
+                            <Badge variant="outline">L{r.lines}</Badge>
+                          )}
                           <Badge variant="secondary">
-                            {typeof r.score === "number"
-                              ? r.score.toFixed(3)
-                              : r.score}
+                            {r.score.toFixed(3)}
                           </Badge>
-                        )}
+                        </div>
                       </div>
-                      {(r.snippet ?? r.context) && (
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {r.snippet ?? r.context}
-                        </p>
+                      {r.chunk_with_context && (
+                        <pre className="text-xs text-muted-foreground bg-muted rounded p-2 overflow-x-auto whitespace-pre">
+                          {r.chunk_with_context}
+                        </pre>
                       )}
                     </div>
                   ))
@@ -253,7 +261,9 @@ export default function App() {
                 {isUpdating ? "Sending…" : "Send Update"}
               </Button>
               {updateStatus && (
-                <span className="text-sm text-muted-foreground">{updateStatus}</span>
+                <span className="text-sm text-muted-foreground">
+                  {updateStatus}
+                </span>
               )}
             </div>
           </TabsContent>
