@@ -7,11 +7,11 @@ if not VAULT:
 
 
 def _resolve_path(path: str) -> str:
-    # Ensure path stays within vault
     full_path = os.path.normpath(os.path.join(VAULT, path))
     if not full_path.startswith(os.path.normpath(VAULT)):
         raise ValueError("Path must be within vault")
     return full_path
+
 
 def write(path: str, content: str) -> str:
     target_path = _resolve_path(path)
@@ -27,6 +27,9 @@ async def search(query: str, mode: str = "fast", scope: str = "") -> str:
     mode: "fast" (BM25) or "deep" (semantic + rerank)
     scope: "" (whole vault) or "project:<name>"
     """
+    if mode not in ("fast", "deep"):
+        return f"[search error] invalid mode '{mode}'; use 'fast' or 'deep'"
+
     try:
         results = await qmd_client.search(query, mode=mode, scope=scope)
     except Exception as e:
