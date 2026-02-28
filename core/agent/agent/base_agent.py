@@ -48,8 +48,8 @@ class BaseAgent:
             model=model,
             system_prompt=system_prompt,
             tools=self.tools,
+            reasoning="high",
         )
-
     def run(self, content: str) -> Generator[dict, None, None]:
         messages = [HumanMessage(content=content)]
         yield from self._loop(messages)
@@ -79,13 +79,8 @@ class BaseAgent:
         yield from self._force_finish(messages)
 
     def _force_finish(self, messages: List[Message]) -> Generator[dict, None, None]:
-        """
-        Last-resort exit when max iterations are reached.
-        Injects a directive and makes one final LLM call
-        with no tools available — structurally guaranteeing text output.
-        """
         yield {"type": "error", "id": "max_iterations",
-               "content": f"Max iterations ({MAX_ITERATIONS}) reached. Forcing final response."}
+            "content": f"Max iterations ({MAX_ITERATIONS}) reached. Forcing final response."}
 
         messages.append(HumanMessage(content=FORCE_FINISH_MESSAGE))
 
@@ -93,6 +88,7 @@ class BaseAgent:
             model=self.model,
             system_prompt=self.system_prompt,
             tools=[],
+            reasoning="high",
         )
 
         for event_json in final_llm.stream(messages):
