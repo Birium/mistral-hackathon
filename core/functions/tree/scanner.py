@@ -84,10 +84,7 @@ def _scan_file(path: Path) -> TreeNode:
         # POLICY: Binary files contribute 0 tokens.
         pass
     else:
-        try:
-            tokens = read_tokens(path)
-        except (OSError, PermissionError):
-            tokens = 0
+        tokens = read_tokens(path)
 
     return TreeNode(
         name=path.name,
