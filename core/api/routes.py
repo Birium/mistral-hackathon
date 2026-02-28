@@ -1,5 +1,6 @@
 import asyncio
 import json
+import uuid
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -30,13 +31,14 @@ async def search(payload: UpdateAndSearchPayload):
         return "".join(parts)
 
     answer = await asyncio.to_thread(_run)
-    return {"queries": [query_str], "answer": answer} 
+    return {"queries": [query_str], "answer": answer}
 
 
 @router.post("/update")
 async def update(payload: UpdateAndSearchPayload):
     from agent.agent.update_agent import UpdateAgent
     from agent.logger import log_agent_event
+
     agent = UpdateAgent()
 
     def _run() -> str:
