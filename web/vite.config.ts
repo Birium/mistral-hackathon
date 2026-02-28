@@ -15,10 +15,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/update': 'http://core:8000',
-      '/search': 'http://core:8000',
-      '/sse':    'http://core:8000',
-      '/tree':   'http://core:8000',
+      '/update': 'http://localhost:8000',
+      '/search': 'http://localhost:8000',
+      '/sse':    'http://localhost:8000',
+      '/tree':   'http://localhost:8000',
     }
   }
 })

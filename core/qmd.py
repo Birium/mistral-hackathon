@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-QMD_TIMEOUT_FAST = 15   # BM25 — always instant
+QMD_TIMEOUT_FAST = 30   # BM25 — always instant
 QMD_TIMEOUT_DEEP = 120  # CPU inference — can be slow
 
 def _run_qmd(args: list[str], timeout: int = QMD_TIMEOUT_FAST) -> str:

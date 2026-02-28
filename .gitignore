@@ -1,11 +1,22 @@
-node_modules/
-build/
-web/dist/
-.env
-.venv
-venv
-.DS_Store
-__pycache__
+# User data — never commit
 vault/
-instructions/
-qmd/
+
+# Python
+core/.venv/
+**/__pycache__/
+**/*.pyc
+*.egg-info/
+
+# Runtime
+*.pid
+.knower/
+
+# Node / Web
+web/node_modules/
+web/dist/
+
+# Core build artefacts
+core/build/
+
+# macOS
+.DS_Store
