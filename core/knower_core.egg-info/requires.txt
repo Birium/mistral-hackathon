@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+mcp[cli]
+watchdog
+python-frontmatter
+pyyaml
+httpx
+sse-starlette
