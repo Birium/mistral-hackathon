@@ -32,6 +32,7 @@ from functions.read import read as _read_impl
 from functions.move import move as _move_impl
 from functions.appender import append as _append_impl
 from functions.concat import concat as _concat_impl
+from functions.edit import edit as _edit_impl
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +112,9 @@ def search(
 
     logger = logging.getLogger(__name__)
 
-    logger.info(f"[search] returning {len(results)} results for queries={queries} with scopes={scopes}")
+    logger.info(
+        f"[search] returning {len(results)} results for queries={queries} with scopes={scopes}"
+    )
 
     lines = [f"## Search results for `{queries}`\n"]
     for r in results:
@@ -154,8 +157,12 @@ def edit(path: str, old_content: str, new_content: str) -> str:
         old_content: Exact text to locate (with or without line number prefixes).
         new_content: Replacement text (no line number prefixes).
     """
-    old_preview = old_content[:60].replace("\n", "\\n") + ("..." if len(old_content) > 60 else "")
-    return f"[DUMMY EDIT] Replaced in '{path}': \"{old_preview}\""
+    try:
+        return _edit_impl(path=path, old_content=old_content, new_content=new_content)
+    except (ValueError, FileNotFoundError) as e:
+        return f"[EDIT ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[EDIT ERROR] Could not edit '{path}': {e}"
 
 
 # ---------------------------------------------------------------------------
