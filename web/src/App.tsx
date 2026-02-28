@@ -1,231 +1,200 @@
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-type SearchResponse = {
-  queries: string[]
-  answer: string
-}
-
-type UpdateResponse = {
-  status: string
-  result: string
-}
+import { useState, useEffect, useCallback, useRef } from 'react'
+import type { ViewType, ChatMode, TreeNode, ActivityResult, InboxDetail } from './types'
+import { fetchTree, fetchFile, fetchInboxDetail, sendUpdate, sendSearch } from './api'
+import { useSSE } from './hooks/useSSE'
+import { Sidebar } from './components/sidebar/Sidebar'
+import { CentralZone } from './components/central/CentralZone'
+import { ChatInput } from './components/chat/ChatInput'
 
 export default function App() {
-  const [tree, setTree] = useState<string>("")
-  const [lastEvent, setLastEvent] = useState<string>("None")
+  // ── Global state ──────────────────────────────────────────────────────────
+  const [currentView, setCurrentView] = useState<ViewType>('home')
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
+  const [fileContent, setFileContent] = useState<string | null>(null)
+  const [chatMode, setChatMode] = useState<ChatMode>('update')
+  const [answeringRef, setAnsweringRef] = useState<string | null>(null)
+  const [treeData, setTreeData] = useState<TreeNode | null>(null)
+  const [activityResult, setActivityResult] = useState<ActivityResult | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [inboxDetail, setInboxDetail] = useState<InboxDetail | null>(null)
+  const [inboxDetailLoading, setInboxDetailLoading] = useState(false)
+  const [inboxDetailError, setInboxDetailError] = useState<string | null>(null)
+  const [chatValue, setChatValue] = useState('')
+  const [focusTrigger, setFocusTrigger] = useState(0)
 
-  // Update state
-  const [updateContent, setUpdateContent] = useState("")
-  const [updateResponse, setUpdateResponse] = useState<UpdateResponse | null>(null)
-  const [updateError, setUpdateError] = useState("")
-  const [isUpdating, setIsUpdating] = useState(false)
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const inboxItems =
+    treeData?.children?.find((n) => n.name === 'inbox/' || n.name === 'inbox')?.children ?? []
+  const inboxCount = inboxItems.length
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null)
-  const [searchError, setSearchError] = useState("")
-  const [isSearching, setIsSearching] = useState(false)
-
-  const fetchTree = async () => {
+  // ── Tree fetching ─────────────────────────────────────────────────────────
+  const refetchTree = useCallback(async () => {
     try {
-      const res = await fetch("/tree")
-      if (res.ok) {
-        const data = await res.json()
-        setTree(data.tree)
-      }
-    } catch (err) {
-      console.error("Failed to fetch tree", err)
+      const tree = await fetchTree()
+      setTreeData(tree)
+    } catch {
+      // silently ignore tree fetch errors
     }
-  }
-
-  useEffect(() => {
-    fetchTree()
-
-    const eventSource = new EventSource("/sse")
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        setLastEvent(data.type ?? "unknown")
-        if (["file_changed", "file_created", "file_deleted"].includes(data.type)) {
-          fetchTree()
-        }
-      } catch (err) {
-        console.error("SSE parse error", err)
-      }
-    }
-
-    eventSource.onerror = (err) => {
-      console.error("EventSource failed:", err)
-      eventSource.close()
-    }
-
-    return () => eventSource.close()
   }, [])
 
-  const handleUpdate = async () => {
-    if (!updateContent.trim()) return
-    setIsUpdating(true)
-    setUpdateResponse(null)
-    setUpdateError("")
+  // Fetch tree on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { refetchTree() }, [])
+
+  // ── SSE ───────────────────────────────────────────────────────────────────
+  const currentFileRef = useRef(selectedFilePath)
+  currentFileRef.current = selectedFilePath
+
+  useSSE({
+    onTreeChange: refetchTree,
+    onFileChange: (path) => {
+      if (currentFileRef.current && path.endsWith(currentFileRef.current)) {
+        fetchFile(currentFileRef.current)
+          .then((data) => setFileContent(data.content))
+          .catch(() => {})
+      }
+    },
+  })
+
+  // ── Callbacks ─────────────────────────────────────────────────────────────
+  const onSelectFile = useCallback(async (rawPath: string) => {
+    // rawPath may be an absolute path from the tree — derive relative vault path
+    const vaultMarker = '/vault/'
+    const idx = rawPath.indexOf(vaultMarker)
+    const relPath = idx !== -1 ? rawPath.slice(idx + vaultMarker.length) : rawPath
+
+    setSelectedFilePath(relPath)
+    setFileContent(null)
+    setCurrentView('file')
     try {
-      const res = await fetch("/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_query: updateContent }),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        setUpdateError(`${res.status}: ${text}`)
-        return
-      }
-      const data: UpdateResponse = await res.json()
-      setUpdateResponse(data)
-      setUpdateContent("")
-    } catch {
-      setUpdateError("Network error — check console")
-    } finally {
-      setIsUpdating(false)
+      const data = await fetchFile(relPath)
+      setFileContent(data.content)
+    } catch (e) {
+      setFileContent(`Erreur: impossible de charger le fichier.\n${e}`)
     }
-  }
+  }, [])
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return
-    setIsSearching(true)
-    setSearchError("")
-    setSearchResponse(null)
+  const onOpenInbox = useCallback(() => {
+    setCurrentView('inbox-list')
+  }, [])
+
+  const onOpenInboxDetail = useCallback(async (name: string) => {
+    setCurrentView('inbox-detail')
+    setInboxDetail(null)
+    setInboxDetailError(null)
+    setInboxDetailLoading(true)
+    try {
+      const detail = await fetchInboxDetail(name)
+      setInboxDetail(detail)
+    } catch (e: unknown) {
+      setInboxDetailError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setInboxDetailLoading(false)
+    }
+  }, [])
+
+  const onBackToInboxList = useCallback(() => {
+    setCurrentView('inbox-list')
+  }, [])
+
+  const onReply = useCallback((name: string) => {
+    setChatMode('answering')
+    setAnsweringRef(name)
+    setFocusTrigger((t) => t + 1)
+  }, [])
+
+  const onCancelReply = useCallback(() => {
+    setChatMode('update')
+    setAnsweringRef(null)
+  }, [])
+
+  const onModeChange = useCallback((mode: 'update' | 'search') => {
+    setChatMode(mode)
+    setAnsweringRef(null)
+  }, [])
+
+  const handleSendMessage = useCallback(async () => {
+    const query = chatValue.trim()
+    if (!query) return
+
+    setChatValue('')
+    setCurrentView('activity')
+    setIsLoading(true)
+    setError(null)
+    setActivityResult(null)
 
     try {
-      const res = await fetch("/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_query: searchQuery }),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        setSearchError(`${res.status}: ${text}`)
-        return
+      if (chatMode === 'search') {
+        const res = await sendSearch(query)
+        setActivityResult({
+          type: 'search',
+          content: res.answer,
+          query,
+        })
+      } else {
+        const ref = chatMode === 'answering' ? answeringRef ?? undefined : undefined
+        const res = await sendUpdate(query, ref)
+        setActivityResult({
+          type: chatMode === 'answering' ? 'answering' : 'update',
+          content: res.result,
+          query,
+        })
+        if (chatMode === 'answering') {
+          setChatMode('update')
+          setAnsweringRef(null)
+        }
       }
-      const data: SearchResponse = await res.json()
-      setSearchResponse(data)
-    } catch {
-      setSearchError("Network error — check console")
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setIsSearching(false)
+      setIsLoading(false)
     }
-  }
+  }, [chatValue, chatMode, answeringRef])
 
-  const handleKeyDown =
-    (callback: () => void) => (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault()
-        callback()
-      }
-    }
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen w-screen bg-background text-foreground overflow-hidden">
-      {/* Left: File Tree */}
-      <div className="w-1/3 border-r p-4 flex flex-col h-full overflow-hidden">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Vault Tree</h2>
-          <Badge variant="outline">SSE: {lastEvent}</Badge>
+      <Sidebar
+        treeData={treeData}
+        inboxCount={inboxCount}
+        selectedPath={selectedFilePath}
+        onSelectFile={onSelectFile}
+        onOpenInbox={onOpenInbox}
+      />
+
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto pb-40">
+          <CentralZone
+            currentView={currentView}
+            selectedFilePath={selectedFilePath}
+            fileContent={fileContent}
+            isLoading={isLoading}
+            error={error}
+            activityResult={activityResult}
+            chatMode={chatMode}
+            inboxItems={inboxItems}
+            inboxDetail={inboxDetail}
+            inboxDetailLoading={inboxDetailLoading}
+            inboxDetailError={inboxDetailError}
+            onSelectFile={onSelectFile}
+            onOpenInboxDetail={onOpenInboxDetail}
+            onBackToInboxList={onBackToInboxList}
+            onReply={onReply}
+          />
         </div>
-        <Separator className="mb-4" />
-        <pre className="flex-1 overflow-auto text-sm p-2 bg-muted/50 rounded-md">
-          {tree || "Loading tree…"}
-        </pre>
-      </div>
 
-      {/* Right: Interaction */}
-      <div className="flex-1 p-6 h-full overflow-y-auto">
-        <h1 className="text-2xl font-bold mb-6">Knower Shell</h1>
-
-        <Tabs defaultValue="update" className="w-full max-w-2xl">
-          <TabsList className="mb-4">
-            <TabsTrigger value="update">Update</TabsTrigger>
-            <TabsTrigger value="search">Search</TabsTrigger>
-          </TabsList>
-
-          {/* ── Update Tab ── */}
-          <TabsContent value="update" className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">New Content</label>
-              <Textarea
-                placeholder="Enter content to write…"
-                className="min-h-[150px]"
-                value={updateContent}
-                onChange={(e) => setUpdateContent(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleUpdate} disabled={isUpdating}>
-              {isUpdating ? "Processing…" : "Send Update"}
-            </Button>
-
-            {updateError && (
-              <p className="text-sm text-destructive">{updateError}</p>
-            )}
-
-            {updateResponse && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Status: <span className="font-mono">{updateResponse.status}</span>
-                </p>
-                {updateResponse.result ? (
-                  <pre className="text-sm bg-muted/30 border rounded-md p-4 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                    {updateResponse.result}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Agent completed with no summary.</p>
-                )}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── Search Tab ── */}
-          <TabsContent value="search" className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search the vault…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown(handleSearch)}
-                className="flex-1"
-              />
-              <Button onClick={handleSearch} disabled={isSearching}>
-                {isSearching ? "Searching…" : "Search"}
-              </Button>
-            </div>
-
-            {searchError && (
-              <p className="text-sm text-destructive">{searchError}</p>
-            )}
-
-            {searchResponse && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Answer for{" "}
-                  <span className="font-mono">
-                    "{searchResponse.queries.join(", ")}"
-                  </span>
-                </p>
-                {searchResponse.answer ? (
-                  <pre className="text-sm bg-muted/30 border rounded-md p-4 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                    {searchResponse.answer}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No answer returned.</p>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+        <ChatInput
+          value={chatValue}
+          onChange={setChatValue}
+          onSend={handleSendMessage}
+          chatMode={chatMode}
+          onModeChange={onModeChange}
+          answeringRef={answeringRef}
+          onCancelReply={onCancelReply}
+          disabled={isLoading}
+          focusTrigger={focusTrigger}
+        />
       </div>
     </div>
   )

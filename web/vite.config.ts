@@ -19,6 +19,8 @@ export default defineConfig({
       '/search': 'http://localhost:8000',
       '/sse':    'http://localhost:8000',
       '/tree':   'http://localhost:8000',
+      '/file':   'http://localhost:8000',
+      '/inbox':  'http://localhost:8000',
     }
   }
 })
