@@ -14,8 +14,11 @@ def write_frontmatter(path: Union[str, Path], data: dict, body: str = "") -> Non
 
     Overwrites the file entirely.
     """
-    block = yaml.dump(data, Dumper=Dumper, allow_unicode=True, default_flow_style=False)
-    content = f"---\n{block}---\n"
-    if body:
-        content += f"\n{body}"
-    Path(path).write_text(content, encoding="utf-8")
+    try:
+        block = yaml.dump(data, Dumper=Dumper, allow_unicode=True, default_flow_style=False)
+        content = f"---\n{block}---\n"
+        if body:
+            content += f"\n{body}"
+        Path(path).write_text(content, encoding="utf-8")
+    except Exception as e:
+        print(f"[write_frontmatter] error writing {path}: {e}")

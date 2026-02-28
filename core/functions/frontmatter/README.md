@@ -1,7 +1,7 @@
 # ADR: Frontmatter Parsing — Library & Architecture Decisions
 
-**Status:** Accepted  
-**Date:** 2026-02-27
+**Status:** Accepted
+**Date:** 2026-02-28
 
 ---
 
@@ -15,7 +15,7 @@ We need to parse, write, and update YAML frontmatter from Markdown files. Two de
 
 ### What we chose
 
-Raw PyYAML with the C loader (`yaml.CLoader`), paired with a manual `---` block splitter, instead of the `python-frontmatter` package.
+Raw PyYAML with the C loader (`yaml.CLoader`), paired with a lazy line-by-line reader, instead of the `python-frontmatter` package.
 
 ### Why not `python-frontmatter`
 
@@ -36,13 +36,13 @@ PyYAML ships with two loader backends:
 | `FullLoader` | Pure Python            | Baseline       |
 | `CLoader`    | C bindings via libyaml | ~10× faster    |
 
-`CLoader` is the fastest YAML parser available in the Python ecosystem for our use case. Combined with a simple string split to extract the frontmatter block (two `find()` calls), the full parse path is as lean as it can get without writing a custom C extension.
+`CLoader` is the fastest YAML parser available in the Python ecosystem for our use case. The reader opens the file lazily via `iter_frontmatter_lines` (see `utils.py`): it reads line-by-line and stops as soon as the closing `---` delimiter is found (200-line hard cap). Only the frontmatter block is ever loaded into memory — the rest of the file, however large, is never touched. Any IO or parse failure is caught and returns an empty dict with a contextual error message rather than propagating an exception.
 
 ### Trade-offs accepted
 
 - We must ensure `libyaml` is installed in our Docker images (`apt-get install -y libyaml-dev`). This is a one-line change and a fully controlled environment.
 - We lose automatic support for TOML/JSON frontmatter. This is intentional — we standardize on YAML only.
-- We write slightly more code than `frontmatter.load(path)`. The implementation is still under 15 lines and has no hidden complexity.
+- We write slightly more code than `frontmatter.load(path)`. The implementation is still under 25 lines and has no hidden complexity.
 
 ---
 
@@ -57,8 +57,11 @@ frontmatter/
 ├── __init__.py     # public re-exports
 ├── reader.py
 ├── writer.py
-└── updater.py
+├── updater.py
+└── utils.py        # shared internal helpers (iter_frontmatter_lines)
 ```
+
+`utils.py` is internal — it is not re-exported from `__init__.py`. It contains `iter_frontmatter_lines`, a generator used by both `reader.py` and `updater.py` to yield frontmatter lines from an open file handle (after the opening `---`). It raises `EOFError` on premature EOF and `ValueError` if the 200-line cap is exceeded, letting each caller decide how to surface the error.
 
 ### Why not a class
 
