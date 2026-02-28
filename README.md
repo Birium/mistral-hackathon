@@ -37,6 +37,7 @@ knower start --dev
 | `knower vault`              | Open vault in Finder                 |
 | `knower config vault <path>`| Set vault path                       |
 | `knower config show`        | Print current config                 |
+| `knower shell`              | Open shell with Python venv activated|
 
 ## Services
 
