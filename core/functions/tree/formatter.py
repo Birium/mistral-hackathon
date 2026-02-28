@@ -22,10 +22,24 @@ def _format_meta(node: TreeNode) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _count_descendants(node: TreeNode) -> tuple[int, int]:
+    """Recursively count all file and folder descendants."""
+    files = 0
+    folders = 0
+    for child in node.children:
+        if child.is_directory:
+            folders += 1
+            sub_files, sub_folders = _count_descendants(child)
+            files += sub_files
+            folders += sub_folders
+        else:
+            files += 1
+    return files, folders
+
+
 def _summary_text(node: TreeNode) -> str:
     """Generate '... N files, M folders' for a collapsed directory."""
-    files = sum(1 for c in node.children if not c.is_directory)
-    folders = sum(1 for c in node.children if c.is_directory)
+    files, folders = _count_descendants(node)
 
     parts: list[str] = []
     if files:
