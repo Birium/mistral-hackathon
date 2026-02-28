@@ -32,6 +32,7 @@ async def run(
     if not queries:
         raise ValueError("queries must be a non-empty list")
 
+    logger.info(f"[search] running search with queries={queries}, mode={mode}, scopes={scopes}, limit={limit}")
     # Fan out all queries concurrently
     tasks = [qmd_client.raw_search(q, mode=mode, limit=limit * 2) for q in queries]
     per_query_results: list[list[dict]] = await asyncio.gather(*tasks)

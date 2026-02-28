@@ -13,16 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type SearchResult = {
-  path: string
-  score: number
-  lines: string
-  chunk_with_context: string
-}
-
 type SearchResponse = {
   queries: string[]
-  results: SearchResult[]
+  answer: string
 }
 
 export default function App() {
@@ -36,8 +29,6 @@ export default function App() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchMode, setSearchMode] = useState<"fast" | "deep">("fast")
-  const [searchScope, setSearchScope] = useState("")
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null)
   const [searchError, setSearchError] = useState("")
   const [isSearching, setIsSearching] = useState(false)
@@ -87,7 +78,7 @@ export default function App() {
       const res = await fetch("/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: updateContent }),
+        body: JSON.stringify({ user_query: updateContent }),
       })
       const data = await res.json()
       setUpdateStatus(`Accepted (ID: ${data.id})`)
@@ -105,17 +96,12 @@ export default function App() {
     setSearchError("")
     setSearchResponse(null)
 
-    const scopeTrimmed = searchScope.trim()
-
     try {
       const res = await fetch("/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          queries: [searchQuery.trim()],
-          mode: searchMode,
-          scopes: scopeTrimmed ? [scopeTrimmed] : null,
-          limit: 10,
+          user_query: searchQuery,
         }),
       })
       if (!res.ok) {
@@ -175,28 +161,11 @@ export default function App() {
                   onKeyDown={handleKeyDown(handleSearch)}
                   className="flex-1"
                 />
-                <Select
-                  value={searchMode}
-                  onValueChange={(v) => setSearchMode(v as "fast" | "deep")}
-                >
-                  <SelectTrigger className="w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fast">Fast</SelectItem>
-                    <SelectItem value="deep">Deep</SelectItem>
-                  </SelectContent>
-                </Select>
+
                 <Button onClick={handleSearch} disabled={isSearching}>
                   {isSearching ? "Searching…" : "Search"}
                 </Button>
               </div>
-
-              <Input
-                placeholder="Scope (optional): vault/projects/startup-x/*"
-                value={searchScope}
-                onChange={(e) => setSearchScope(e.target.value)}
-              />
             </div>
 
             {searchError && (
@@ -204,42 +173,21 @@ export default function App() {
             )}
 
             {searchResponse && (
-              <div className="space-y-3 mt-4">
+              <div className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  {searchResponse.results.length} result(s) for{" "}
+                  Answer for{" "}
                   <span className="font-mono">
                     "{searchResponse.queries.join(", ")}"
                   </span>
                 </p>
-
-                {searchResponse.results.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No results found.</p>
+                {searchResponse.answer ? (
+                  <pre className="text-sm bg-muted/30 border rounded-md p-4 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    {searchResponse.answer}
+                  </pre>
                 ) : (
-                  searchResponse.results.map((r, i) => (
-                    <div
-                      key={i}
-                      className="border rounded-md p-4 bg-muted/30 space-y-2"
-                    >
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="text-sm font-mono font-medium">
-                          {r.path}
-                        </span>
-                        <div className="flex gap-2">
-                          {r.lines && r.lines !== "?" && (
-                            <Badge variant="outline">L{r.lines}</Badge>
-                          )}
-                          <Badge variant="secondary">
-                            {r.score.toFixed(3)}
-                          </Badge>
-                        </div>
-                      </div>
-                      {r.chunk_with_context && (
-                        <pre className="text-xs text-muted-foreground bg-muted rounded p-2 overflow-x-auto whitespace-pre">
-                          {r.chunk_with_context}
-                        </pre>
-                      )}
-                    </div>
-                  ))
+                  <p className="text-sm text-muted-foreground">
+                    No answer returned.
+                  </p>
                 )}
               </div>
             )}

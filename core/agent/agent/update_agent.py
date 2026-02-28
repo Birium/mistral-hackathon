@@ -1,7 +1,7 @@
-from agent.base_agent import BaseAgent
-from llm.config import DEFAULT_MODEL
-from prompts.update_prompt import UPDATE_SYSTEM_PROMPT
-from tools.tools import UPDATE_TOOLS, read
+from agent.agent.base_agent import BaseAgent
+from agent.llm.config import DEFAULT_MODEL
+from agent.prompts.update_prompt import UPDATE_SYSTEM_PROMPT
+from agent.tools.tools import UPDATE_TOOLS, read
 
 
 class UpdateAgent(BaseAgent):
