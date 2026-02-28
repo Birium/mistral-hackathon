@@ -20,39 +20,15 @@ Exported lists:
 
 import asyncio
 import logging
-from pathlib import Path
 from typing import Optional, List
 
 from agent.tools.tool_base import BaseTool
+from functions.utils import _resolve_path
 from functions.tree import tree as _tree_impl
-from env import env
+from functions.delete import delete as _delete_impl
+from functions.search import search as _search_impl
+from functions.write import write as _write_impl
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _resolve_path(path: str) -> Path:
-    """Resolve any vault path to an absolute filesystem path.
-
-    Handles all formats the LLM might produce:
-      - bare filename:       "overview.md"       -> VAULT_PATH/overview.md
-      - vault-prefixed:      "vault/projects/x/" -> VAULT_PATH/projects/x/
-      - root aliases:        ".", "./", "vault/"  -> VAULT_PATH/
-    """
-    vault_root = Path(env.VAULT_PATH).resolve()
-    clean = path.strip()
-
-    # Root aliases → return vault root directly
-    if clean in (".", "./", "", "vault", "vault/", "vault/."):
-        return vault_root
-
-    # Strip leading "vault/" prefix
-    if clean.startswith("vault/"):
-        clean = clean[len("vault/"):]
-
-    return vault_root / clean.strip("/")
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +117,6 @@ def search(
         mode: 'fast' for BM25 term matching, 'deep' for full semantic pipeline.
         scopes: Optional list of glob patterns to restrict the search scope.
     """
-    from functions.search import search as _search_impl
 
     try:
         results = asyncio.run(_search_impl(queries=queries, mode=mode, scopes=scopes))
@@ -175,8 +150,12 @@ def write(path: str, content: str) -> str:
         path: Vault path of the file to create or overwrite.
         content: Complete markdown content (frontmatter managed by background job).
     """
-    preview = content[:80].replace("\n", "\\n") + ("..." if len(content) > 80 else "")
-    return f"[DUMMY WRITE] Written to '{path}': \"{preview}\""
+    try:
+        return _write_impl(path=path, content=content)
+    except ValueError as e:
+        return f"[WRITE ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[WRITE ERROR] Could not write '{path}': {e}"
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +218,12 @@ def delete(path: str) -> str:
     Args:
         path: Vault path of the file or folder to delete.
     """
-    return f"[DUMMY DELETE] Deleted '{path}'"
+    try:
+        return _delete_impl(path=path)
+    except ValueError as e:
+        return f"[DELETE ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[DELETE ERROR] Could not delete '{path}': {e}"
 
 
 # ---------------------------------------------------------------------------
