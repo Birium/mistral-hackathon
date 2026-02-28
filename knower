@@ -183,6 +183,7 @@ case "${1:-}" in
   web)      cmd_web "$@" ;;
   vault)    cmd_vault ;;
   config)   cmd_config "$@" ;;
+  shell)    cmd_shell ;;
 
   help|"")
     echo ""

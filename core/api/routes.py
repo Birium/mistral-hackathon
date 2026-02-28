@@ -1,6 +1,5 @@
 import json
 import uuid
-import os
 import job_queue as queue
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
