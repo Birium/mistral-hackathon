@@ -1,7 +1,7 @@
 from agent.agent.base_agent import BaseAgent
 from agent.llm.config import DEFAULT_MODEL
 from agent.prompts.search_prompt import SEARCH_SYSTEM_PROMPT
-from agent.tools.tools import SEARCH_TOOLS, read
+from agent.tools.tools import SEARCH_TOOLS, read, tree
 
 
 class SearchAgent(BaseAgent):
@@ -20,8 +20,8 @@ class SearchAgent(BaseAgent):
     def _load_vault_context(self) -> str:
         try:
             overview = read("overview.md")
-            tree_content = read("tree.md")
+            vault_tree = f"```tree.md\n{tree('vault/', depth=1)}\n```"
             profile = read("profile.md")
-            return f"{overview}\n\n{tree_content}\n\n{profile}"
+            return f"{overview}\n\n{vault_tree}\n\n{profile}"
         except Exception as e:
             return f"[vault context unavailable: {e}]"
