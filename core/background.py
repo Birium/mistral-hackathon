@@ -41,6 +41,7 @@ def run(path: str) -> None:
 
 async def _handle(path: str) -> None:
     # if it's not a new file, update file frontmatter
+    # use OS tools to avoid concurrency issues
     if os.stat(path).st_birthtime != os.path.getmtime(path):
         mark_writing(path)
         try:
