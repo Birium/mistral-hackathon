@@ -10,7 +10,9 @@ SEED_FILES = {
 SEED_DIRS = ["inbox", "bucket", "projects"]
 
 def init_vault():
-    vault_path = os.getenv("VAULT_PATH", "/vault")
+    vault_path = os.getenv("VAULT_PATH", "")
+    if not vault_path:
+        raise RuntimeError("VAULT_PATH env var is not set")
     for dir_name in SEED_DIRS:
         os.makedirs(f"{vault_path}/{dir_name}", exist_ok=True)
     for filename, content in SEED_FILES.items():

@@ -5,7 +5,7 @@ import job_queue as queue
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
-from watcher import subscribe
+from watcher import subscribe, unsubscribe
 from mcp_server.tools import tree as get_tree
 
 router = APIRouter()
@@ -27,12 +27,15 @@ async def search(payload: dict):
 @router.get("/sse")
 async def sse(request: Request):
     async def event_stream():
-        q = await subscribe()   # local pub/sub
-        while True:
-            if await request.is_disconnected():
-                break
-            event = await q.get()
-            yield {"data": json.dumps(event)}
+        q = subscribe()
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                event = await q.get()
+                yield {"data": json.dumps(event)}
+        finally:
+            unsubscribe(q)
     return EventSourceResponse(event_stream())
 
 @router.get("/tree")
