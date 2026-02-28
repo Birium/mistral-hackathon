@@ -1,0 +1,90 @@
+# Todo
+
+Ce fichier est la source de vérité de tout ce qui reste à faire, à clarifier, et à documenter dans le projet. Il capture sans exception tout le contexte des sessions de brainstorming, de l'analyse critique des specs tools, et des feedbacks de révision. Rien ne doit être perdu ici.
+
+---
+
+## Contexte général — décisions structurantes à garder en tête
+
+Avant toute chose, plusieurs décisions ont été prises lors de la dernière session de révision qui impactent de nombreux fichiers en même temps. Elles sont listées ici pour qu'elles ne soient jamais perdues de vue pendant les réécriture.
+
+**Read + Edit avec lignes — décision finale.** Les deux tools utilisent les numéros de lignes. Le `read` retourne toujours le contenu avec les lignes numérotées. Le `edit` travaille également avec les lignes — il y aura une abstraction interne qui ajoute les numéros pour localiser la section à éditer, puis les retire pour appliquer le remplacement dans le fichier réel. Cela rend l'agent plus structuré et plus précis dans ses opérations d'édition.
+
+**Scopes du search tool — simplification radicale.** Les scopes prédéfinis comme `"project:[nom]"` ou `"all-states"` dégagent complètement. Le format naturel est un path avec wildcard : `projects/startup-x/` pour un projet précis, `projects/*/state.md` pour tous les states. L'agent connaît parfaitement cette notation et n'a pas besoin d'abstractions supplémentaires. Les scopes cross-cutting de type `all-*` ne sont pas non plus des features supplémentaires à documenter — c'est juste une façon de formuler un path wildcard que l'agent sait déjà faire.
+
+**Dates dans le search — feature supplémentaire, pas dans le tool de l'agent.** Les paramètres `date_from` et `date_to` sont documentés uniquement dans le gros fichier `search.md` (le fichier de compréhension du composant), pas dans le fichier tool `tools/search.md` qui décrit comment l'agent utilise le tool. Les dates restent une amélioration future, pas un paramètre exposé à l'agent dans le MVP.
+
+**Features hors scope — section dans chaque fichier tool.** Tout ce qui est intéressant mais pas MVP ne disparaît pas. Chaque fichier tool aura une section dédiée en bas "Features supplémentaires" qui liste les améliorations identifiées. Comme ça, le potentiel d'évolution de chaque tool est toujours visible dans sa doc.
+
+**Pas de fichier QMD séparé.** Tout ce qui concerne QMD vit dans un seul `search.md` (le fichier de compréhension, pas l'outil). Ce fichier explique tout : comment QMD fonctionne, la stratégie de chunking, les modes BM25 et pipeline complet, l'indexation incrémentale, ce qui est indexé ou non. Le tool `tools/search.md` reste léger — il dit juste comment l'agent utilise le search, pas comment QMD fonctionne en dessous.
+
+**Images — comportement simple.** Les images vont dans le bucket comme n'importe quel fichier. Quand un agent fait un `read` sur une image, le tool la charge dans la conversation (contexte multimodal) — même fonction `read`, le tool détecte que c'est une image et la traite en conséquence. Pas d'OCR forcé, pas de conversion en texte. Le tokeniser d'images (calculer combien de tokens coûte une image selon son format/résolution) est une feature supplémentaire documentée dans le fichier du background job.
+
+**Tree — aligné, pas de changement majeur.** Le paramètre `metadata` du tool `tree` disparaît. La sortie affiche toujours et uniquement : nom du fichier, tokens, date de dernière modification. `tree.md` (le fichier auto-généré) utilise la même fonction que le tool `tree()` — ce sont deux faces de la même logique, pas deux implémentations séparées.
+
+---
+
+## Fichiers à créer
+
+### `background-job.md`
+
+Créer un fichier dédié pour documenter le background job. Actuellement décrit en quelques paragraphes dans `infra.md` mélangé avec la queue et le MCP. Le background job est un composant critique qui mérite sa propre doc.
+
+Ce que le fichier devra couvrir :
+- Déclenchement : event-driven via le file watcher chokidar, pas périodique. Se déclenche après chaque écriture, suppression, ou déplacement de fichier dans le vault.
+- Les quatre opérations dans l'ordre : calcul des tokens du fichier modifié, mise à jour de `tokens` et `updated` dans le frontmatter, régénération de `tree.md`, ré-indexation du fichier modifié dans QMD (uniquement le fichier concerné, pas un full re-scan).
+- La formule de calcul des tokens texte : `Math.ceil(text.length / 4)` — approximation suffisante, rapide, sans dépendance externe.
+- La prévention des boucles infinies : le background job écrit dans le vault (frontmatter, tree.md), ce qui déclenche le file watcher, qui pourrait re-déclencher le background job infiniment. Mécanisme : le système maintient un `Set` des paths en cours d'écriture par le background job. Le file watcher ignore les events sur ces paths.
+- Ce que le background job ne fait pas : il ne lit pas le contenu des fichiers pour en comprendre le sens, il ne prend pas de décisions, il ne logue pas dans le changelog. Il est entièrement déterministe.
+
+**Section features supplémentaires à inclure :**
+- Tokenisation des images : les images ont un coût en tokens qui dépend de leur résolution et format (pas `text.length / 4`). Les modèles de vision comme Claude ont des règles spécifiques par tile. Implémenter un tokeniser d'images pour que le champ `tokens` dans le frontmatter d'un fichier image reflète le coût réel de charger cette image dans le contexte d'un agent.
+
+---
+
+### `tools/search.md` (le tool, pas le fichier de compréhension)
+
+Ce fichier est recentré sur une seule chose : comment l'agent utilise le tool `search`. Beaucoup de ce qui est actuellement dans ce fichier migre vers le gros `search.md`.
+
+**Ce qui reste dans `tools/search.md` :**
+- La signature du tool : `search(query, mode, scope)`
+- Le paramètre `query` : texte de la recherche
+- Le paramètre `mode` : `"fast"` (BM25) vs `"deep"` (pipeline complet), avec une phrase sur quand utiliser l'un ou l'autre
+- Le paramètre `scope` : optionnel, format path avec wildcards. Exemples : `"projects/startup-x/"` pour un projet précis, `"projects/*/state.md"` pour tous les states, sans scope = tout le vault indexé. Plus de scopes prédéfinis comme `"project:[nom]"` ou `"all-states"` — l'agent formule directement les paths qu'il connaît.
+- Le format de retour : array de chunks avec `path`, `chunk`, `score`, `lines`. Pour chaque chunk, le tool retourne aussi N lignes de contexte au-dessus et en-dessous (valeur exacte de N à définir à l'écriture — probablement 5 à 10 lignes). Cela garantit que l'agent a toujours du contexte autour du passage trouvé, pas juste le chunk isolé.
+- Les cas d'usage typiques, les edge cases
+
+**Ce qui dégage de `tools/search.md` :**
+- Toute la description interne de QMD (chunking, BM25, pipeline complet, RRF) → migre dans `search.md`
+- La description des scopes cross-cutting `all-*` → supprimée, remplacée par la notation wildcard
+- Les paramètres `date_from` et `date_to` → migrent dans `search.md` comme feature supplémentaire
+
+**Section features supplémentaires à inclure dans `tools/search.md` :**
+- Multi-query : `search(["query1", "query2"], ...)` pour chercher plusieurs patterns en parallèle en un seul appel. Réduit les allers-retours entre l'agent et le service, utile quand l'agent sait qu'il a plusieurs angles de recherche à couvrir.
+- Filtrage par date : `date_from` et `date_to` comme paramètres optionnels. Comportement sur changelogs (filtre sur H1 de date) vs autres fichiers (filtre sur `updated` du frontmatter). Formats acceptés : date ISO et expressions relatives ("7 days ago", "30 days ago").
+
+---
+
+## Fichier à créer — `search.md` (version complète)
+
+Ce fichier remplace et étend largement le `search.md` actuel du dossier MVP. C'est le fichier de compréhension complète du composant search — il couvre tout ce qui se passe sous le capot, de QMD jusqu'au concat engine.
+
+Ce que le fichier devra couvrir :
+
+**QMD — la couche d'indexation.** Ce qu'est QMD, comment il s'installe et se configure, les trois modes natifs (`search`, `vsearch`, `query`) et lesquels on expose dans le tool (fast = `search`, deep = `query`). La stratégie de chunking : QMD chunke aux breakpoints de score élevé dans la structure markdown. H1 = score 100, H2 = score 90. Ce sont les points de découpe naturels. Comment ça s'applique aux différents types de fichiers du vault : changelogs (H1 par jour reste cohérent, découpe au H2 si une journée est très dense), tasks (H1 par tâche = un chunk par tâche), fichiers courts comme `state.md` et `description.md` (généralement un seul chunk par fichier), items bucket (un ou plusieurs chunks selon la taille mit frontmatter inclus). L'indexation incrémentale : le background job ré-indexe uniquement le fichier modifié après chaque écriture, pas un full re-scan. La table de ce qui est indexé et ce qui ne l'est pas (inchangée par rapport à `vault.md`).
+
+**La mécanique de retour des chunks.** C'est un point à clarifier à l'écriture. Quelques questions à trancher dans le fichier : est-ce que le retour est toujours un chunk ou parfois un fichier entier ? Comment on détermine si un chunk représente le fichier entier ou seulement une partie ? La décision en cours d'écriture devra répondre à ça. Ce qui est acté : pour chaque chunk retourné, le tool inclut N lignes de contexte au-dessus et N lignes en-dessous dans le fichier source. Cette fenêtre de contexte donne à l'agent une vue suffisante pour raisonner sans avoir à faire un `read` du fichier.
+
+**Le concat engine.** Composant mécanique (pas un LLM) qui assemble les fichiers identifiés par l'agent de search en un document structuré. L'agent lui fournit une liste de fichiers avec pour chacun soit le fichier entier soit une range de lignes. L'engine préfixe chaque bloc par le path du fichier.
+
+**Le format de sortie.** Deux parties dans l'ordre : l'overview de l'agent (2-5 lignes rédigées par le LLM qui oriente l'utilisateur sur ce qui a été trouvé et pourquoi c'est pertinent) suivie du document concaténé produit par l'engine (contenu brut des fichiers avec leurs paths comme headers). Format identique pour le MCP et l'interface web dans le MVP.
+
+**Section features supplémentaires à inclure dans ce fichier :**
+- Filtrage par date (`date_from`, `date_to`) : explication complète du comportement sur changelogs vs autres fichiers, formats acceptés, cas d'usage.
+- Différenciation de la sortie entre MCP et interface web : le MVP retourne le même format partout, mais à terme l'interface pourrait avoir un rendu plus riche (fichiers cliquables, collapsibles) et l'API MCP un format plus programmatique.
+
+---
+
+### Créer le fichier de répartition des tâches — Bima, Widium, Yvannof
+
+Un fichier simple qui assigne qui travaille sur quoi. Pas un Gantt — juste une liste claire de qui est responsable de quelles parties du système. Le split dépend des compétences et des préférences de chacun.
