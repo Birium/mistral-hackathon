@@ -3,7 +3,7 @@ import os
 from functions.frontmatter.layout import FM
 
 def _fm(body: str) -> str:
-    lines = ["---", ""] * 5
+    lines = []
     lines[FM.delimiter_start] = "---"
     lines[FM.created] = f"{FM.created_key}: now"
     lines[FM.updated] = f"{FM.updated_key}: now"
