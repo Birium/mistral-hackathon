@@ -6,3 +6,4 @@ web/dist/
 venv
 .DS_Store
 __pycache__
+vault/
