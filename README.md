@@ -1,109 +1,66 @@
 # Knower
 
+Personal memory system. Send information to it, query it back. Everything lives in a local folder of plain Markdown files.
 
-Personal knowledge system with an MCP server for Claude Code.
+## Requirements
+
+- macOS
+- Python 3.12+
+- Node.js 22+
+- [uv](https://github.com/astral-sh/uv)
 
 ## Install
 
 ```bash
-chmod +x install.sh && ./install.sh
+./install.sh
 ```
 
-This creates a `knower` command available system-wide via symlink at `/usr/local/bin/knower`.
-
-## Usage
+## First run
 
 ```bash
-knower start       # start all services
-knower status      # check running containers
-knower visualize   # open web UI
+knower config vault ~/my-vault
+knower start --dev
 ```
+
+## Commands
+
+| Command                     | Description                          |
+| --------------------------- | ------------------------------------ |
+| `knower start`              | Start core in background (prod)      |
+| `knower start --dev`        | Start core in foreground (hot reload)|
+| `knower dev`                | Start core + web in dev mode         |
+| `knower stop`               | Stop core                            |
+| `knower status`             | Show running state + config          |
+| `knower logs`               | Tail prod log                        |
+| `knower visualize`          | Start Vite dev server on :5173       |
+| `knower visualize --bg`     | Same, in background                  |
+| `knower vault`              | Open vault in Finder                 |
+| `knower config vault <path>`| Set vault path                       |
+| `knower config show`        | Print current config                 |
 
 ## Services
 
-| Service    | URL              | What it does                        |
-| ---------- | ---------------- | ----------------------------------- |
-| `core`     | `localhost:8000` | FastAPI + MCP server + file watcher |
-| `vectordb` | `localhost:6333` | Qdrant — semantic search storage    |
-| `web`      | `localhost:5173` | Visual vault explorer               |
-
-Your vault lives in `./vault/` — a plain folder of Markdown files, bind-mounted into the container.
+| Service | URL                    |
+| ------- | ---------------------- |
+| Core    | `http://localhost:8000`|
+| Web     | `http://localhost:5173`|
 
 ## Connect to Claude Code
 
-**1. Start the stack**
-
 ```bash
 knower start
-```
-
-**2. Register the MCP server**
-
-```bash
 claude mcp add knower --transport sse http://localhost:8000/mcp/sse
+claude mcp list  # verify: ✓ Connected
 ```
-
-**3. Verify**
-
-```bash
-claude mcp list
-```
-
-You should see:
-
-```bash
-knower: http://localhost:8000/mcp/sse (SSE) - ✓ Connected
-```
-
-**4. Test in a Claude Code session**
-
-Start a Claude Code session and ask:
-
-```
-List all files in my vault.
-```
-
-Claude should call the `tree` tool and return your vault structure.
 
 ## Connect to Mistral Vibe
-
-**1. Start the stack**
-
-```bash
-knower start
-```
-
-**2. Configure MCP tools**
-
-(One is already existing, feel free to edit it)
-Create a configuration file (e.g., `mistral_vibe_config.toml`) with your MCP server details:
 
 ```toml
 [[mcp_servers]]
 name = "knower"
 transport = "streamable-http"
 url = "http://localhost:8000/mcp"
-
-# Set tool permissions
-[tools.knower_tree]
-permission = "always"
-
-[tools.knower_read]
-permission = "always"
-
-[tools.knower_search]
-permission = "always"
 ```
-
-**3. Test with Mistral Vibe**
-
-Start a Mistral Vibe session and ask:
-
-```
-List all files in my vault.
-```
-
-Mistral Vibe will use the configured MCP tools to access your vault structure.
 
 ## Uninstall MCP
 
