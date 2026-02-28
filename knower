@@ -1,63 +1,91 @@
 #!/usr/bin/env bash
 set -e
 
-# ── Config ─────────────────────────────────────────────────────────────────
+# ── Config ──────────────────────────────────────────────────────────────────
 CONFIG="$HOME/.config/knower/config"
 RUNTIME_DIR="$HOME/.local/share/knower"
 PID_FILE="$RUNTIME_DIR/knower-core.pid"
-LOG_FILE="$RUNTIME_DIR/logs/core.log"
+LOG_DIR="$RUNTIME_DIR/logs"
+LOG_FILE="$LOG_DIR/core.log"
 
 [[ -f "$CONFIG" ]] && source "$CONFIG"
-
 [[ -n "$KNOWER_HOME" ]] || { echo "❌ KNOWER_HOME not set. Run ./install.sh first."; exit 1; }
 
 CORE_PORT="${CORE_PORT:-8000}"
 VENV="$KNOWER_HOME/core/.venv/bin/activate"
 START_SCRIPT="$KNOWER_HOME/core/start.sh"
 
-# ── Helpers ─────────────────────────────────────────────────────────────────
+mkdir -p "$LOG_DIR"
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
 is_running() {
   [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
 }
 
-# ── Commands ────────────────────────────────────────────────────────────────
-cmd_start() {
-  local dev=false
-  [[ "${2:-}" == "--dev" ]] && dev=true
+_export_env() {
+  export KNOWER_HOME CORE_PORT VAULT_PATH KNOWER_ENV
+}
 
-  if [[ "$dev" == true ]]; then
-    export VAULT_PATH="$KNOWER_HOME/vault"
-    export KNOWER_ENV=dev
-    export KNOWER_HOME
-    export CORE_PORT
-    echo "➜  Starting core (dev) — vault: $VAULT_PATH"
-    source "$VENV"
-    bash "$START_SCRIPT" &
-    echo $! > "$PID_FILE"
-    wait $(cat "$PID_FILE") || true
-    rm -f "$PID_FILE"
-  else
-    [[ -n "$VAULT_PATH" ]] || { echo "❌ VAULT_PATH not set. Run: knower config vault <path>"; exit 1; }
-    is_running && { echo "⚠️  Already running (PID $(cat "$PID_FILE"))"; exit 0; }
-    export VAULT_PATH
-    export KNOWER_ENV=prod
-    export KNOWER_HOME          # ← add this
-    export CORE_PORT
-    echo "➜  Starting core (prod) — vault: $VAULT_PATH"
-    source "$VENV"
-    nohup bash "$START_SCRIPT" >> "$LOG_FILE" 2>&1 &
-    echo $! > "$PID_FILE"
-    echo "✅ Started (PID $!). Logs: knower logs"
+_require_vault() {
+  [[ -n "$VAULT_PATH" ]] || { echo "❌ VAULT_PATH not set. Run: knower config vault <path>"; exit 1; }
+}
+
+_start_core_bg() {
+  # Usage: _start_core_bg <log_file>
+  source "$VENV"
+  nohup bash "$START_SCRIPT" >> "$1" 2>&1 &
+  echo $! > "$PID_FILE"
+  echo "✅ Core started (PID $!)"
+}
+
+# ── Commands ─────────────────────────────────────────────────────────────────
+
+cmd_dev() {
+  VAULT_PATH="$KNOWER_HOME/vault"
+  KNOWER_ENV=dev
+  _export_env
+
+  if is_running; then
+    echo "⚠️  Core already running (PID $(cat "$PID_FILE")). Stop it first: knower stop"
+    exit 1
   fi
+
+  echo "➜  Starting core (dev, hot-reload)..."
+  source "$VENV"
+  bash "$START_SCRIPT" &        # no nohup, no redirect — stdout/stderr go to terminal
+  echo $! > "$PID_FILE"
+  echo "✅ Core started (PID $!)"
+
+  echo "➜  Starting web (:5173)..."
+  cd "$KNOWER_HOME/web"
+  [[ -d node_modules ]] || npm install --silent
+  npm run dev
+}
+
+cmd_start() {
+  # Prod mode: core in background, reads VAULT_PATH from config.
+  _require_vault
+
+  if is_running; then
+    echo "⚠️  Already running (PID $(cat "$PID_FILE")). Use 'knower stop' first."
+    exit 0
+  fi
+
+  KNOWER_ENV=prod
+  _export_env
+
+  echo "➜  Starting core (prod) — vault: $VAULT_PATH"
+  _start_core_bg "$LOG_FILE"
+  echo "   Logs: knower logs"
 }
 
 cmd_stop() {
   if is_running; then
     kill "$(cat "$PID_FILE")"
     rm -f "$PID_FILE"
-    echo "✅ Stopped."
+    echo "✅ Core stopped."
   else
-    echo "⚠️  Not running."
+    echo "⚠️  Core is not running."
     rm -f "$PID_FILE"
   fi
 }
@@ -76,24 +104,29 @@ cmd_status() {
 }
 
 cmd_logs() {
-  [[ -f "$LOG_FILE" ]] || { echo "No log file yet. Start in prod mode first."; exit 1; }
+  [[ -f "$LOG_FILE" ]] || { echo "No log file yet. Run 'knower start' first."; exit 1; }
   tail -f "$LOG_FILE"
 }
 
-cmd_visualize() {
+cmd_web() {
+  # Start the Vite dev server. Foreground by default, --bg for background.
   local bg=false
   [[ "${2:-}" == "--bg" ]] && bg=true
+
   cd "$KNOWER_HOME/web"
+  [[ -d node_modules ]] || npm install --silent
+
   if [[ "$bg" == true ]]; then
-    nohup npm run dev >> "$RUNTIME_DIR/logs/web.log" 2>&1 &
-    echo "✅ Vite started in background (PID $!). Port: 5173"
+    nohup npm run dev >> "$LOG_DIR/web.log" 2>&1 &
+    echo "✅ Web started in background (PID $!). Port: 5173"
+    echo "   Logs: tail -f $LOG_DIR/web.log"
   else
     npm run dev
   fi
 }
 
 cmd_vault() {
-  [[ -n "$VAULT_PATH" ]] || { echo "❌ VAULT_PATH not set. Run: knower config vault <path>"; exit 1; }
+  _require_vault
   open "$VAULT_PATH"
 }
 
@@ -101,8 +134,7 @@ cmd_config() {
   case "${2:-}" in
     vault)
       [[ -n "${3:-}" ]] || { echo "Usage: knower config vault <path>"; exit 1; }
-      VAULT_ABS="$(cd "$(dirname "$3")" 2>/dev/null && pwd)/$(basename "$3")" || \
-        VAULT_ABS="$3"  # fallback if dir doesn't exist yet
+      VAULT_ABS="$(cd "$(dirname "$3")" 2>/dev/null && pwd)/$(basename "$3")" || VAULT_ABS="$3"
       mkdir -p "$VAULT_ABS"
       if grep -q "^VAULT_PATH=" "$CONFIG" 2>/dev/null; then
         sed -i '' "s|^VAULT_PATH=.*|VAULT_PATH=$VAULT_ABS|" "$CONFIG"
@@ -117,63 +149,42 @@ cmd_config() {
       echo ""
       ;;
     *)
-      echo "Usage: knower config vault <path> | knower config show"
+      echo "Usage:"
+      echo "  knower config vault <path>   Set vault path"
+      echo "  knower config show           Print current config"
       exit 1
       ;;
   esac
 }
 
-cmd_dev() {
-  # Start core in background, web in foreground
-  export VAULT_PATH="$KNOWER_HOME/vault"
-  export KNOWER_ENV=dev
-  export KNOWER_HOME
-  export CORE_PORT
-
-  echo "➜  Starting core (background)..."
-  source "$VENV"
-  nohup bash "$START_SCRIPT" >> "$RUNTIME_DIR/logs/core.log" 2>&1 &
-  echo $! > "$PID_FILE"
-  echo "✅ Core started (PID $!)"
-
-  echo "➜  Starting web (foreground, :5173)..."
-  cd "$KNOWER_HOME/web"
-
-  # Install deps if needed
-  [[ -d node_modules ]] || npm install --silent
-
-  npm run dev
-}
-
-# ── Router ──────────────────────────────────────────────────────────────────
+# ── Router ───────────────────────────────────────────────────────────────────
 case "${1:-}" in
-  start)      cmd_start "$@" ;;
-  stop)       cmd_stop ;;
-  status)     cmd_status ;;
-  logs)       cmd_logs ;;
-  visualize)  cmd_visualize "$@" ;;
-  vault)      cmd_vault ;;
-  config)     cmd_config "$@" ;;
-  dev)        cmd_dev ;;
+  dev)      cmd_dev ;;
+  start)    cmd_start ;;
+  stop)     cmd_stop ;;
+  status)   cmd_status ;;
+  logs)     cmd_logs ;;
+  web)      cmd_web "$@" ;;
+  vault)    cmd_vault ;;
+  config)   cmd_config "$@" ;;
 
   help|"")
     echo ""
     echo "Usage: knower <command>"
     echo ""
-    echo "  start [--dev]          Start core (dev: foreground + hot reload)"
+    echo "  dev                    Dev mode: core (bg, hot-reload) + web (fg)"
+    echo "  start                  Prod: start core in background"
     echo "  stop                   Stop core"
-    echo "  status                 Show running state + config"
-    echo "  logs                   Tail prod log"
-    echo "  visualize [--bg]       Start Vite dev server"
+    echo "  status                 Show config and running state"
+    echo "  logs                   Tail core log (prod)"
+    echo "  web [--bg]             Start Vite dev server"
     echo "  vault                  Open vault in Finder"
     echo "  config vault <path>    Set vault path"
     echo "  config show            Print current config"
-    echo "  dev                    Start core + web in dev mode"
-    
     echo ""
     ;;
   *)
-    echo "❌ Unknown command: $1. Run 'knower help'."
+    echo "❌ Unknown command: '$1'. Run 'knower help'."
     exit 1
     ;;
 esac

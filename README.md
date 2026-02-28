@@ -2,6 +2,8 @@
 
 Personal memory system. Send information to it, query it back. Everything lives in a local folder of plain Markdown files.
 
+---
+
 ## Requirements
 
 - macOS
@@ -9,51 +11,73 @@ Personal memory system. Send information to it, query it back. Everything lives 
 - Node.js 22+
 - [uv](https://github.com/astral-sh/uv)
 
+---
+
 ## Install
 
 ```bash
 ./install.sh
 ```
 
-## First run
+---
 
+## Quick start
+
+**Development** — core + web, logs in terminal:
+```bash
+knower dev
+```
+
+**Production** — set a vault path, run core in background:
 ```bash
 knower config vault ~/my-vault
-knower start --dev
+knower start
 ```
+
+---
 
 ## Commands
 
-| Command                     | Description                          |
-| --------------------------- | ------------------------------------ |
-| `knower start`              | Start core in background (prod)      |
-| `knower start --dev`        | Start core in foreground (hot reload)|
-| `knower dev`                | Start core + web in dev mode         |
-| `knower stop`               | Stop core                            |
-| `knower status`             | Show running state + config          |
-| `knower logs`               | Tail prod log                        |
-| `knower visualize`          | Start Vite dev server on :5173       |
-| `knower visualize --bg`     | Same, in background                  |
-| `knower vault`              | Open vault in Finder                 |
-| `knower config vault <path>`| Set vault path                       |
-| `knower config show`        | Print current config                 |
+| Command | Description |
+|---|---|
+| `knower dev` | Dev mode: core (bg, hot-reload, logs in terminal) + web (fg) |
+| `knower start` | Prod: start core in background |
+| `knower stop` | Stop core |
+| `knower status` | Show config and running state |
+| `knower logs` | Tail core log (prod) |
+| `knower web` | Start Vite dev server on :5173 |
+| `knower web --bg` | Same, in background |
+| `knower vault` | Open vault in Finder |
+| `knower config vault <path>` | Set vault path |
+| `knower config show` | Print current config |
+
+---
 
 ## Services
 
-| Service | URL                    |
-| ------- | ---------------------- |
-| Core    | `http://localhost:8000`|
-| Web     | `http://localhost:5173`|
+| Service | URL |
+|---|---|
+| Core API | `http://localhost:8000` |
+| Web UI | `http://localhost:5173` |
 
-## Connect to Claude Code
+---
+
+## MCP integration
+
+### Claude Code
 
 ```bash
 knower start
 claude mcp add knower --transport sse http://localhost:8000/mcp/sse
-claude mcp list  # verify: ✓ Connected
+claude mcp list   # verify: ✓ Connected
 ```
 
-## Connect to Mistral Vibe
+To remove:
+```bash
+claude mcp remove knower
+```
+
+### Mistral Le Chat / Vibe
 
 ```toml
 [[mcp_servers]]
@@ -62,13 +86,4 @@ transport = "streamable-http"
 url = "http://localhost:8000/mcp"
 ```
 
-## Uninstall MCP
-
-**For Claude Code:**
-
-```bash
-claude mcp remove knower
-```
-
-**For Mistral Vibe:**
-Simply remove or modify the `mistral_vibe_config.toml` file to update your MCP configuration.
+To remove: delete or comment out the block above from your config file.
