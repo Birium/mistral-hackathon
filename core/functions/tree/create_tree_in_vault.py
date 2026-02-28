@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -7,13 +8,13 @@ from .scanner import scan
 from .formatter import format_tree
 
 
-def create_tree_in_vault(path: str, depth: Optional[int]) -> Path:
+def create_tree_in_vault(path: Optional[str] = None, depth: Optional[int] = None) -> Path:
     """Scan *path*, render the tree, and write it to tree.md in the vault.
 
     Parameters
     ----------
     path : str
-        Starting point. Can be a directory or a single file.
+        Path from vault root.
     depth : int | None
         Levels to unfold. ``None`` = unlimited, ``0`` = root line only.
 
@@ -27,11 +28,9 @@ def create_tree_in_vault(path: str, depth: Optional[int]) -> Path:
     FileNotFoundError
         If *path* does not exist.
     """
-    target = Path(path)
+    vault_path = Path(os.getenv("VAULT_PATH", ""))
+    tree_file_path = Path(vault_path) if not path else Path(vault_path) / path
 
-    if not target.exists():
-        raise FileNotFoundError(f"Path does not exist: {path}")
-
-    node = scan(target)
+    node = scan(tree_file_path)
     content = format_tree(node, max_depth=depth)
-    return create_file("tree.md", body=content)
+    return create_file(Path(tree_file_path / "tree.md"), body=content)

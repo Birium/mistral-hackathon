@@ -7,23 +7,6 @@ from functions.frontmatter.tokens import update_tokens
 
 logger = logging.getLogger(__name__)
 
-# Paths currently locked by this background process.
-# watcher.py checks this set to avoid re-triggering on our own writes.
-_locked_paths: set[str] = set()
-
-
-def lock_path(path: str) -> None:
-    _locked_paths.add(path)
-
-
-def unlock_path(path: str) -> None:
-    _locked_paths.discard(path)
-
-
-def is_path_locked(path: str) -> bool:
-    return path in _locked_paths
-
-
 # Set once at startup by watcher.py
 _loop: asyncio.AbstractEventLoop | None = None
 
@@ -43,12 +26,7 @@ async def _handle(path: str) -> None:
     # if it's not a new file, update file frontmatter
     # use OS tools to avoid concurrency issues
     if os.stat(path).st_birthtime != os.path.getmtime(path):
-        lock_path(path)
-        try:
-            update_tokens(path)
-        finally:
-            unlock_path(path)
-
+        update_tokens(path)
 
     ok = await qmd_client.reindex()
     if not ok:

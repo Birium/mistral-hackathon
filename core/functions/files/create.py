@@ -1,8 +1,9 @@
+from datetime import datetime
 import os
 from pathlib import Path
 from typing import Union
 
-from functions.frontmatter import update_tokens
+from functions.frontmatter import FM, update_tokens
 from functions.frontmatter.io import write_frontmatter
 
 _VAULT = os.getenv("VAULT_PATH", "")
@@ -27,6 +28,6 @@ def create_file(path: Union[str, Path], body: str = "") -> Path:
         raise ValueError(f"Path must be within vault: {p}")
 
     p.parent.mkdir(parents=True, exist_ok=True)
-    write_frontmatter(p, data={}, body=body)
+    write_frontmatter(p, data={FM.created_key: datetime.now(), FM.updated_key: datetime.now(), FM.tokens_key: 0}, body=body)
     update_tokens(p)
     return p
