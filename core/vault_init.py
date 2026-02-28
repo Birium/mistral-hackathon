@@ -5,8 +5,8 @@ from functions.frontmatter.layout import FM
 def _fm(body: str) -> str:
     lines = []
     lines.append("---")
-    lines.append(f"{FM.created_key}: now")
-    lines.append(f"{FM.updated_key}: now")
+    lines.append(f"{FM.created_key}: 2026-02-28 15:20:07.560840")
+    lines.append(f"{FM.updated_key}: 2026-02-28 15:20:07.560840")
     lines.append(f"{FM.tokens_key}: 0")
     lines.append("---")
     return "\n".join(lines) + "\n\n" + body
