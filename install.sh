@@ -12,6 +12,8 @@ echo "║     Knower — Installer       ║"
 echo "╚══════════════════════════════╝"
 echo ""
 
+KNOWER_HOME="$(cd "$(dirname "$0")" && pwd)"
+
 # ── 1. Platform check ──────────────────────────────────────────────────────
 [[ "$(uname)" == "Darwin" ]] || fail "Knower only supports macOS."
 ok "macOS detected"
@@ -43,10 +45,10 @@ ok "qmd $(qmd --version 2>/dev/null || echo 'installed')"
 
 # ── 4. Python venv + deps ──────────────────────────────────────────────────
 info "Creating Python venv in core/.venv..."
-cd core
+cd "$KNOWER_HOME/core"
 uv venv .venv --python python3 --quiet
 uv pip install --quiet -e . --python .venv/bin/python
-cd ..
+cd "$KNOWER_HOME"
 ok "Python venv ready"
 
 # ── 5. Runtime dirs ────────────────────────────────────────────────────────
@@ -55,7 +57,6 @@ mkdir -p ~/.local/share/knower/logs
 ok "Runtime dirs ready"
 
 # ── 6. Write KNOWER_HOME to config (preserve existing values) ──────────────
-KNOWER_HOME="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$HOME/.config/knower/config"
 
 # Write KNOWER_HOME — add or replace, never touch other keys

@@ -18,7 +18,7 @@ class LLMClient:
         model: ModelConfig,
         system_prompt: str = "",
         tools: Optional[List] = None,
-        reasoning_effort: str = "low",
+        reasoning: Optional[str] = None,  # "low" | "medium" | "high" | None
         api_key: str = None,
     ):
         from env import env
@@ -29,12 +29,11 @@ class LLMClient:
         self.model = model
         self.system_prompt = system_prompt
         self.tools = tools or []
-        self.reasoning_effort = reasoning_effort
+        self.reasoning = reasoning
 
         self.thinking: str = ""
         self.content: str = ""
         self.tool_calls: List[ToolCall] = []
-        self.last_event_type: Optional[str] = None
         self.is_thinking_started: bool = False
 
     def stream(self, messages: List[Message]) -> Generator[str, None, None]:
@@ -49,11 +48,13 @@ class LLMClient:
                 "model": self.model.model_id,
                 "messages": serialized,
                 "stream": True,
-                "reasoning_effort": self.reasoning_effort,
             }
 
             if self.tools:
                 stream_params["tools"] = [t.to_schema() for t in self.tools]
+
+            if self.reasoning is not None:
+                stream_params["extra_body"] = {"reasoning": {"effort": self.reasoning}}
 
             stream = self.client.chat.completions.create(**stream_params)
 
@@ -157,12 +158,15 @@ class LLMClient:
                 thinking_chunk = f"<think>\n{thinking_chunk}"
             return ThinkEvent(content=thinking_chunk, id=message_id)
 
-        if self.is_thinking_started and not (hasattr(delta, "reasoning") and delta.reasoning):
+        end_think_event = None
+        if self.is_thinking_started:
             self.is_thinking_started = False
-            return ThinkEvent(content="\n</think>\n", id=message_id)
+            end_think_event = ThinkEvent(content="\n</think>\n", id=message_id)
 
         if hasattr(delta, "content") and delta.content:
             self.content += delta.content
+            if end_think_event:
+                return end_think_event
             return AnswerEvent(content=delta.content, id=message_id)
 
         if hasattr(delta, "tool_calls") and delta.tool_calls:
@@ -182,6 +186,9 @@ class LLMClient:
                         current.name = tc_delta.function.name
                     if tc_delta.function.arguments:
                         current.arguments_str += tc_delta.function.arguments
+
+        if end_think_event:
+            return end_think_event
 
         return None
 
@@ -205,5 +212,4 @@ class LLMClient:
         self.thinking = ""
         self.content = ""
         self.tool_calls = []
-        self.last_event_type = None
         self.is_thinking_started = False
