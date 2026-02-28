@@ -29,6 +29,7 @@ from functions.delete import delete as _delete_impl
 from functions.search import search as _search_impl
 from functions.write import write as _write_impl
 from functions.read import read as _read_impl
+from functions.move import move as _move_impl
 
 
 
@@ -185,7 +186,12 @@ def move(from_path: str, to_path: str) -> str:
         from_path: Vault source path of the file or folder to move.
         to_path: Vault destination path. Parent directories created if needed.
     """
-    return f"[DUMMY MOVE] Moved '{from_path}' → '{to_path}'"
+    try:
+        return _move_impl(from_path=from_path, to_path=to_path)
+    except (ValueError, FileNotFoundError) as e:
+        return f"[MOVE ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[MOVE ERROR] Could not move '{from_path}': {e}"
 
 
 # ---------------------------------------------------------------------------
