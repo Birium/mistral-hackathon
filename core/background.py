@@ -1,21 +1,31 @@
 import asyncio
 import logging
-import os
+from functions.frontmatter import write_frontmatter
 import qmd as qmd_client
-
-from functions.frontmatter.tokens import update_tokens
 
 logger = logging.getLogger(__name__)
 
 # Set once at startup by watcher.py
 _loop: asyncio.AbstractEventLoop | None = None
+_locked: bool = False
 
 def set_loop(loop: asyncio.AbstractEventLoop) -> None:
     global _loop
     _loop = loop
 
+def lock() -> None:
+    global _locked
+    _locked = True
+
+def unlock() -> None:
+    global _locked
+    _locked = False
+
 def run(path: str) -> None:
     """Called from watchdog thread — must not block."""
+    if _locked:
+        logger.debug(f"[background] locked, skipping {path}")
+        return
     if _loop is None:
         logger.error("[background] event loop not set, skipping")
         return
@@ -23,10 +33,8 @@ def run(path: str) -> None:
     asyncio.run_coroutine_threadsafe(_handle(path), _loop)
 
 async def _handle(path: str) -> None:
-    # if it's not a new file, update file frontmatter
-    # use OS tools to avoid concurrency issues
-    if os.stat(path).st_birthtime != os.path.getmtime(path):
-        update_tokens(path)
+    lock()
+    write_frontmatter(path)
 
     ok = await qmd_client.reindex()
     if not ok:
@@ -34,6 +42,7 @@ async def _handle(path: str) -> None:
         return
 
     logger.info(f"[background] reindex done for {path}")
+    unlock()
 
     # Uncomment to run full reembed on file change (slow, but ensures embeddings are always up to date)
     # ok = await qmd_client.reembed()

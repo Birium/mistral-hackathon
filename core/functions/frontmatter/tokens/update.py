@@ -1,8 +1,8 @@
 from typing import Union
 from pathlib import Path
 
-from functions.frontmatter.tokens.count import count_tokens
-from functions.frontmatter.updated.update import update_updated
+from .count import count_tokens
+from ..updated.update import update_updated
 
 from ..io import read_frontmatter, update_frontmatter
 from ..layout import FM
