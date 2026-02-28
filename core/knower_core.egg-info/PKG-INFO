@@ -12,3 +12,4 @@ Requires-Dist: python-frontmatter
 Requires-Dist: pyyaml
 Requires-Dist: httpx
 Requires-Dist: sse-starlette
+Requires-Dist: toon-format

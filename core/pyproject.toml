@@ -13,6 +13,7 @@ dependencies = [
   "pyyaml",
   "httpx",
   "sse-starlette",
+  "toon-format",
 ]
 
 [build-system]
@@ -22,3 +23,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["api*", "mcp_server*"]
+
+[tool.uv.sources]
+toon-format = { git = "https://github.com/toon-format/toon-python.git" }
