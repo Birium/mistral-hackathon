@@ -148,3 +148,27 @@
         -   `<search-strategy>` : Documentation des patterns de recherche multi-pass adaptés au type de question (temporelle, statut, historique, cross-projet, vague).
         -   `<rules>` : Invariants absolus (jamais écrire, jamais inventer, jamais halluciner des paths).
         -   `<output>` : Format de sortie strict en deux parties (Overview rédigée + Fichiers concaténés).
+
+### ✅ **Phase 8 : Standardisation des Prompts Système & Implémentation de l'Update Agent**
+
+-   **Refonte Qualitative du Search Prompt :**
+-   **Alignement sur les standards de qualité :** Réécriture complète de `search_prompt.py` pour abandonner le format "manuel procédural" (listes à puces, sous-catégories rigides) au profit d'une prose fluide et directive. Adoption du pattern "Bold Lead-in + Paragraphe" pour transmettre le *mindset* de l'agent plutôt qu'une simple suite d'instructions.
+-   **[`prompts/search_prompt.py`] :**
+    -   **`<identity>` :** Resserrée à l'essentiel (3 lignes), suppression des justifications défensives ("this is not a limitation").
+    -   **`<search-strategy>` :** Transformation radicale. Les 5 catégories de questions (temporelle, statut, etc.) sont tissées organiquement dans le texte. L'accent est mis sur le raisonnement initial (utiliser `overview` et `tree` avant tout outil) et l'itération (ne pas s'arrêter à une recherche infructueuse).
+    -   **`<rules>` :** Condensation des règles absolues. Suppression des explications évidentes pour un LLM ("Even if you think a file has a typo...").
+
+-   **Extension du Système de Prompts (Outils d'Écriture) :**
+-   **[`prompts/tools_prompt.py`] :** Ajout des 5 constantes manquantes pour les outils de modification, suivant le même standard de qualité (instructions stratégiques sur le *quand* et le *comment*, pas de détails techniques).
+    -   `WRITE_TOOL_PROMPT` : Distinction claire entre création/réécriture complète et modification partielle.
+    -   `EDIT_TOOL_PROMPT` : Insistance sur la précondition de lecture (`read` obligatoire avant `edit`) et l'unicité du contexte de remplacement.
+    -   `APPEND_TOOL_PROMPT` : Explication du workflow "zero-read" pour les changelogs et tasks (insertion aveugle en haut ou en bas).
+    -   `MOVE_TOOL_PROMPT` : Cas d'usage pour le routing et la correction d'erreurs.
+    -   `DELETE_TOOL_PROMPT` : Usage principal pour le nettoyage de l'inbox après résolution.
+
+-   **Implémentation du Prompt Update Agent :**
+-   **[`prompts/update_prompt.py`] :** Création du prompt système complet pour l'agent d'écriture, remplaçant le placeholder existant.
+    -   **Architecture Modulaire :** Assemblage dynamique via f-strings incluant `env_prompt`, `agentic_model`, `initial_context` et les 8 outils (lecture + écriture).
+    -   **`<identity>` :** Définition du rôle de "sole writer" et de la question directrice "Where does this information belong?".
+    -   **`<update-strategy>` :** Directives de haut niveau sur le routing (signal fort vs ambiguïté), la gestion de l'`inbox_ref` (priorité absolue), et la création de dossiers inbox avec `review.md` en cas de doute.
+    -   **`<rules>` :** Interdictions strictes : ne jamais toucher au frontmatter (géré par le background job), ne jamais régénérer `tree.md`, et ne jamais terminer sans logger dans `changelog.md`.
