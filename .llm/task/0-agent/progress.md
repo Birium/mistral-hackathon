@@ -77,3 +77,17 @@
 -   **Nettoyage transversal :**
     -   **[`llm/client.py`] :** Suppression de l'attribut `last_event_type` jamais utilisé fonctionnellement. Suppression du commentaire `lazy import to avoid circular`. Retrait de tous les commentaires inline dans `stream()`, `_process_chunk()`, et `_execute_tool()`.
     -   **[`agent/base_agent.py`] :** `from typing import List` étendu à `List, Generator`. Suppression de `_stream_and_collect` comme couche intermédiaire devenue inutile.
+
+### ✅ **Phase 4 : Sécurisation de la Boucle Agentique et Graceful Degradation**
+
+-   **Architecture & Mécanique de la Boucle Agentique :**
+    -   **Clarification du mécanisme de sortie naturel :** Validation du fait que l'agent n'a pas besoin d'un outil explicite (type `finish()`) pour terminer sa tâche. La boucle s'arrête organiquement lorsque le LLM décide de générer du texte final (`content`) sans inclure de `tool_calls`.
+    -   **Séparation Planification / Action :** Confirmation que la planification interne du modèle (via les tokens de `reasoning` ou de manière latente pour les modèles standards) ne déclenche pas de sortie prématurée. Le modèle peut "penser" puis agir dans la même itération sans briser la boucle.
+
+-   **Implémentation du Filet de Sécurité (Graceful Degradation) :**
+    -   **[`agent/base_agent.py`] :** Refonte de la gestion de la limite d'itérations pour éviter une coupure brutale (crash) et la perte du contexte de travail de l'agent.
+    -   **Extraction des constantes :** Ajout de `MAX_ITERATIONS = 25` (limite élargie pour des tâches complexes de mémoire) et de `FORCE_FINISH_MESSAGE` (directive stricte ordonnant au modèle de résumer son travail et de s'arrêter) au niveau du module.
+    -   **Conservation de l'état :** Modification de `__init__` pour stocker `self.model`, `self.system_prompt` et `self.tools` directement sur l'instance de l'agent. Ces références sont nécessaires pour reconstruire un client LLM de secours.
+    -   **Création de la méthode `_force_finish` :** Implémentation d'un chemin d'exécution distinct appelé à la fin du `while` si la limite est atteinte.
+    -   **Garantie structurelle de sortie :** Dans `_force_finish`, instanciation d'un nouveau `LLMClient` (`final_llm`) en lui passant explicitement `tools=[]`. Cette absence d'outils garantit mécaniquement (au niveau de l'API) que le modèle ne pourra pas tenter de nouveaux appels et sera forcé de produire une réponse textuelle de clôture.
+    -   **Traçabilité et Debugging :** Ajout d'un événement `yield {"type": "error", "id": "max_iterations", ...}` au déclenchement du `_force_finish`. Bien que l'arrêt soit géré proprement, l'utilisation du type `error` (défini dans `schemas/event.py`) permet au système d'affichage (`display.py`) de signaler visuellement l'anomalie, atteindre 25 itérations n'étant pas un comportement nominal pour l'agent.
