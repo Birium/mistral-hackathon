@@ -31,7 +31,7 @@ from functions.write import write as _write_impl
 from functions.read import read as _read_impl
 from functions.move import move as _move_impl
 from functions.appender import append as _append_impl
-
+from functions.concat import concat as _concat_impl
 
 
 # ---------------------------------------------------------------------------
@@ -223,17 +223,18 @@ def delete(path: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def concat(files: List[str]) -> str:
-    """Assemble a list of files into a single structured markdown document.
+def concat(files: list[dict]) -> str:
+    """Assemble an ordered list of vault files into a single structured markdown document.
 
     Args:
-        files: Ordered list of vault file paths to assemble.
+        files: Ordered list of file objects. Each object has:
+               - path  (str)        : vault path of the file
+               - lines (str | null) : line range 'N-M' to extract, or null for the full file
     """
-    blocks = [
-        f"```{f}\n1  | [DUMMY CONCAT] Mock content for '{f}'\n```"
-        for f in files
-    ]
-    return "\n\n".join(blocks) if blocks else ""
+    try:
+        return _concat_impl(files=files)
+    except Exception as e:
+        return f"[CONCAT ERROR] Unexpected error: {e}"
 
 
 # ---------------------------------------------------------------------------
