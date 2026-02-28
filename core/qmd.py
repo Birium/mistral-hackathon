@@ -5,8 +5,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-QMD_TIMEOUT_FAST = 30   # BM25 — always instant
-QMD_TIMEOUT_DEEP = 120  # CPU inference — can be slow
+QMD_TIMEOUT_FAST = 30
+QMD_TIMEOUT_DEEP = 300
+
 
 def _run_qmd(args: list[str], timeout: int = QMD_TIMEOUT_FAST) -> str:
     cmd = ["qmd"] + args
@@ -28,24 +29,26 @@ def _run_qmd(args: list[str], timeout: int = QMD_TIMEOUT_FAST) -> str:
         logger.error("[qmd] qmd binary not found in PATH")
         return ""
 
-async def _run_qmd_async(args: list[str]) -> str:
-    """Non-blocking wrapper for async context."""
-    return await asyncio.to_thread(_run_qmd, args)
+
+def _extract_json(raw: str) -> str:
+    """Slice from the first JSON array marker, skipping qmd progress lines."""
+    idx = raw.find("[")
+    if idx == -1:
+        return ""
+    return raw[idx:]
 
 
 def _parse_json_output(raw: str) -> list[dict]:
-    """Parse qmd --json output. Returns empty list on failure."""
     if not raw:
         return []
     try:
-        return json.loads(raw)
+        return json.loads(_extract_json(raw))
     except json.JSONDecodeError:
-        logger.error(f"[qmd] Failed to parse JSON: {raw[:200]}")
+        logger.error(f"[qmd] Failed to parse JSON: {raw[:300]}")
         return []
 
 
 def _apply_scope(results: list[dict], scope: str) -> list[dict]:
-    """Post-filter results by project path prefix."""
     if not scope or not scope.startswith("project:"):
         return results
     project_name = scope.removeprefix("project:")
@@ -53,40 +56,33 @@ def _apply_scope(results: list[dict], scope: str) -> list[dict]:
     return [r for r in results if r.get("docid", "").startswith(prefix)]
 
 
-# --- Public API ---
-
-
 async def search(
     query: str, mode: str = "fast", scope: str = "", limit: int = 5
 ) -> list[dict]:
-    """
-    mode="fast"  → BM25 only  (qmd search --json)
-    mode="deep"  → semantic + rerank (qmd query --json)
-    """
-    fetch_limit = limit * 3 if scope else limit  # over-fetch when filtering by scope
+    fetch_limit = limit * 3 if scope else limit
 
     if mode == "deep":
         args = ["query", query, "--json", "-n", str(fetch_limit)]
+        timeout = QMD_TIMEOUT_DEEP
     else:
         args = ["search", query, "--json", "-n", str(fetch_limit)]
+        timeout = QMD_TIMEOUT_FAST
 
-    raw = await _run_qmd_async(args)
+    raw = await asyncio.to_thread(_run_qmd, args, timeout)
     results = _parse_json_output(raw)
     results = _apply_scope(results, scope)
     return results[:limit]
 
 
 async def reindex() -> bool:
-    """Call after vault writes. Fast (BM25 only, no model)."""
-    raw = await _run_qmd_async(["update"])
-    ok = raw is not None
+    raw = await asyncio.to_thread(_run_qmd, ["update"], QMD_TIMEOUT_FAST)
+    ok = bool(raw)
     logger.info("[qmd] reindex done" if ok else "[qmd] reindex failed")
     return ok
 
 
 async def reembed() -> bool:
-    """Call periodically. Slow (runs GGUF model)."""
-    raw = await _run_qmd_async(["embed"])
-    ok = raw is not None
+    raw = await asyncio.to_thread(_run_qmd, ["embed"], QMD_TIMEOUT_DEEP)
+    ok = bool(raw)
     logger.info("[qmd] reembed done" if ok else "[qmd] reembed failed")
     return ok
