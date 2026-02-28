@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+KNOWER_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+case "$1" in
+  start)     docker compose --profile core up -d ;;
+  stop)      docker compose --profile all down ;;
+  clean)     docker compose --profile all down -v ;;
+  visualize) docker compose --profile web up -d ;;
+  status)    docker compose ps ;;
+  vault)     open "$KNOWER_DIR/vault" ;;  # macOS only
+  help)      echo "Usage: knower {start|stop|visualize|status|vault}" ;;
+  *)
+    echo "Usage: knower {start|stop|visualize|status|vault}"
+    exit 1
+    ;;
+esac
