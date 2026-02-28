@@ -3,9 +3,9 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent.update_agent import UpdateAgent
-from agent.search_agent import SearchAgent
-from agent.display import Display
+from agent.agent.update_agent import UpdateAgent
+from agent.agent.search_agent import SearchAgent
+from agent.agent.display import Display
 
 
 def main():

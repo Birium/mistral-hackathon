@@ -1,50 +1,74 @@
+"""
+MCP tool implementations.
+
+search → SearchAgent (was: functions.search directly)
+write  → raw atomic filesystem write (unchanged — MCP clients expect deterministic path)
+update → UpdateAgent (new — intelligent vault routing for unstructured content)
+"""
+
+import asyncio
 import os
-import qmd as qmd_client
 
 VAULT = os.getenv("VAULT_PATH", "")
 if not VAULT:
     raise RuntimeError("VAULT_PATH env var is not set")
 
-
-def _resolve_path(path: str) -> str:
-    full_path = os.path.normpath(os.path.join(VAULT, path))
-    if not full_path.startswith(os.path.normpath(VAULT)):
-        raise ValueError("Path must be within vault")
-    return full_path
+# ---------------------------------------------------------------------------
+# update — routes through UpdateAgent
+# ---------------------------------------------------------------------------
 
 
-def write(path: str, content: str) -> str:
-    target_path = _resolve_path(path)
-    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    with open(target_path, "w") as f:
-        f.write(content)
-    return f"written: {path}"
+async def update(content: str) -> str:
+    """Send unstructured content to the update agent for intelligent vault routing.
+
+    The agent decides where to store it, how to structure it, and logs to changelog.
+    For direct deterministic writes, use `write` instead.
+    """
+    from agent.agent.update_agent import UpdateAgent
+    from agent.logger import log_agent_event
+
+    agent = UpdateAgent()
+
+    def _run() -> str:
+        parts = []
+        for event in agent.process(content):
+            log_agent_event(event)
+            if event.get("type") == "answer" and not event.get("tool_calls"):
+                parts.append(event.get("content", ""))
+        return "".join(parts)
+
+    result = await asyncio.to_thread(_run)
+    return result or "Update agent processed the content."
+
+
+# ---------------------------------------------------------------------------
+# search — routes through SearchAgent
+# ---------------------------------------------------------------------------
 
 
 async def search(
-    queries: list[str],
-    mode: str = "fast",
-    scopes: list[str] | None = None,
+    content: str
 ) -> str:
-    """Search the vault. mode: fast (BM25) or deep (semantic+rerank)."""
-    from functions.search import search as search_fn
+    """Search the vault using the search agent (BM25 or semantic pipeline).
 
-    if mode not in ("fast", "deep"):
-        return f"[search error] invalid mode '{mode}'"
-    if not queries:
-        return "[search error] queries must be a non-empty list"
+    The agent runs the query, retrieves results, and formats them with context.
+    """
+    from agent.agent.search_agent import SearchAgent
+    from agent.logger import log_agent_event
+
+    agent = SearchAgent()
+
+    def _run() -> str:
+        parts = []
+        for event in agent.process(content):
+            log_agent_event(event)
+            if event.get("type") == "answer" and not event.get("tool_calls"):
+                parts.append(event.get("content", ""))
+        return "".join(parts)
 
     try:
-        results = await search_fn(queries=queries, mode=mode, scopes=scopes)
+        result = await asyncio.to_thread(_run)
     except Exception as e:
         return f"[search error] {e}"
 
-    if not results:
-        return f"No results found for: {queries}"
-
-    lines = [f"## Search results for `{queries}`\n"]
-    for r in results:
-        lines.append(f"### {r.path} (score: {r.score}, lines: {r.lines})")
-        lines.append(f"```\n{r.chunk_with_context}\n```\n")
-
-    return "\n".join(lines)
+    return result or f"No answer returned for: {content}"

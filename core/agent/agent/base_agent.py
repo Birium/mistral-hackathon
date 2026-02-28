@@ -1,9 +1,9 @@
 import json
 from typing import List, Generator
 
-from llm.client import LLMClient
-from llm.config import ModelConfig
-from schemas.message import Message, HumanMessage, ToolMessage
+from agent.llm.client import LLMClient
+from agent.llm.config import ModelConfig
+from agent.schemas.message import Message, HumanMessage, ToolMessage
 
 
 MAX_ITERATIONS = 25

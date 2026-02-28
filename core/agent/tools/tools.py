@@ -3,7 +3,7 @@ All vault tools — one file, nine tools.
 
 tree   → real implementation via core/functions/tree
 read   → real implementation (filesystem read + line numbering)
-search → dummy
+search → real implementation via core/functions/search (BM25 + semantic)
 write  → dummy
 edit   → dummy
 append → dummy
@@ -18,16 +18,18 @@ Exported lists:
   SEARCH_TOOLS — tree, read, search, concat (read-only)
 """
 
+import asyncio
+import logging
 from pathlib import Path
 from typing import Optional, List
 
-from tools.tool_base import BaseTool
+from agent.tools.tool_base import BaseTool
 from functions.tree import tree as _tree_impl
 from env import env
 
 
 # ---------------------------------------------------------------------------
-# Path resolution
+# Helpers
 # ---------------------------------------------------------------------------
 
 
@@ -123,7 +125,7 @@ def read(paths: str, head: Optional[int] = None, tail: Optional[int] = None) -> 
 
 
 # ---------------------------------------------------------------------------
-# search — dummy
+# search — real (async bridge)
 # ---------------------------------------------------------------------------
 
 
@@ -139,17 +141,26 @@ def search(
         mode: 'fast' for BM25 term matching, 'deep' for full semantic pipeline.
         scopes: Optional list of glob patterns to restrict the search scope.
     """
-    scope_info = f", scopes={scopes}" if scopes else ""
-    return (
-        f"[DUMMY SEARCH] Queries: {queries}, mode={mode}{scope_info}\n"
-        f"Results:\n"
-        f"  - vault/projects/startup-x/state.md (score: 0.89)\n"
-        f"    Line 22: 'API externe : prestataire indisponible avant juin.'\n"
-        f"  - vault/projects/startup-x/changelog.md (score: 0.71)\n"
-        f"    Line 9: '[décision] Abandon de l API externe'\n"
-        f"  - vault/changelog.md (score: 0.58)\n"
-        f"    Line 45: 'Décision de pivot technique sur startup-x'\n"
-    )
+    from functions.search import search as _search_impl
+
+    try:
+        results = asyncio.run(_search_impl(queries=queries, mode=mode, scopes=scopes))
+    except Exception as e:
+        return f"[SEARCH ERROR] {e}"
+
+    if not results:
+        return f"No results found for: {queries}"
+    
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"[search] returning {len(results)} results for queries={queries} with scopes={scopes}")
+
+    lines = [f"## Search results for `{queries}`\n"]
+    for r in results:
+        lines.append(f"### {r.path} (score: {r.score}, lines: {r.lines})")
+        lines.append(f"```\n{r.chunk_with_context}\n```\n")
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -253,23 +264,27 @@ def concat(files: List[str]) -> str:
 # Tool instances
 # ---------------------------------------------------------------------------
 
-TreeTool   = BaseTool(tree)
-ReadTool   = BaseTool(read)
+TreeTool = BaseTool(tree)
+ReadTool = BaseTool(read)
 SearchTool = BaseTool(search)
-WriteTool  = BaseTool(write)
-EditTool   = BaseTool(edit)
+WriteTool = BaseTool(write)
+EditTool = BaseTool(edit)
 AppendTool = BaseTool(append)
-MoveTool   = BaseTool(move)
+MoveTool = BaseTool(move)
 DeleteTool = BaseTool(delete)
 ConcatTool = BaseTool(concat)
 
-
-# ---------------------------------------------------------------------------
-# Tool sets per agent
-# ---------------------------------------------------------------------------
-
-# Search agent — read-only: tree, read, search, concat
+# Search agent — read-only
 SEARCH_TOOLS = [TreeTool, ReadTool, SearchTool, ConcatTool]
 
-# Update agent — full access: everything except concat
-UPDATE_TOOLS = [TreeTool, ReadTool, SearchTool, WriteTool, EditTool, AppendTool, MoveTool, DeleteTool]
+# Update agent — full access
+UPDATE_TOOLS = [
+    TreeTool,
+    ReadTool,
+    SearchTool,
+    WriteTool,
+    EditTool,
+    AppendTool,
+    MoveTool,
+    DeleteTool,
+]

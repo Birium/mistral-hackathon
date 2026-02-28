@@ -1,4 +1,5 @@
 pyproject.toml
+agent/logger.py
 agent/terminal.py
 agent/agent/__init__.py
 agent/agent/base_agent.py
@@ -16,8 +17,8 @@ agent/schemas/event.py
 agent/schemas/message.py
 agent/schemas/tool.py
 agent/tools/__init__.py
-agent/tools/dummy_tools.py
 agent/tools/tool_base.py
+agent/tools/tools.py
 api/__init__.py
 api/routes.py
 functions/frontmatter/__init__.py
