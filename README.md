@@ -1,5 +1,6 @@
 # Knower
 
+
 Personal knowledge system with an MCP server for Claude Code.
 
 ## Install
