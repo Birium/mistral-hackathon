@@ -2,6 +2,7 @@ from typing import Union
 from pathlib import Path
 
 from functions.frontmatter.tokens.count import count_tokens
+from functions.frontmatter.updated.update import update_updated
 
 from ..io import read_frontmatter, update_frontmatter
 from ..layout import FM
@@ -15,4 +16,5 @@ def update_tokens(path: Union[str, Path]) -> int:
     if existing == tokens:
         return tokens
     update_frontmatter(path, {FM.tokens_key: tokens}, line=FM.tokens)
+    update_updated(path)
     return tokens
