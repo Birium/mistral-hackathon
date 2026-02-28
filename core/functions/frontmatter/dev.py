@@ -8,8 +8,8 @@ tree <src> [--depth N]
     and last-modified timestamps.
 
 frontmatter <file>
-    Update the `updated` and `tokens` fields of a vault Markdown file,
-    then print all three frontmatter values and the full file content.
+    Update the `tokens` field of a vault Markdown file, then print
+    OS timestamps and the token count, plus the full file content.
     Useful for manually verifying frontmatter read/write behaviour.
 
 Usage (run from core/)
@@ -20,6 +20,7 @@ Usage (run from core/)
 """
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Ensure `core/` is on the path so sibling packages resolve correctly
@@ -30,8 +31,6 @@ import argparse
 
 from functions.tree import tree
 from functions.frontmatter import (
-    FM, read_created,
-    update_updated, read_updated,
     read_tokens, update_tokens, format_tokens,
 )
 
@@ -47,11 +46,13 @@ def cmd_frontmatter(args) -> None:
         print(f"[error] file not found: {path}")
         return
 
-    update_updated(path)
     update_tokens(path)
 
-    print(f"created:  {read_created(path)}")
-    print(f"updated:  {read_updated(path)}")
+    stat = path.stat()
+    created = datetime.fromtimestamp(getattr(stat, "st_birthtime", stat.st_mtime), tz=timezone.utc)
+    updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
+    print(f"created:  {created}")
+    print(f"updated:  {updated}")
     tokens = read_tokens(path)
     print(f"tokens:   {tokens} ({format_tokens(tokens)})")
     print(f"\n--- file content ---\n{path.read_text()}")
