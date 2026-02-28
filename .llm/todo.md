@@ -24,24 +24,6 @@ Avant toute chose, plusieurs décisions ont été prises lors de la dernière se
 
 ---
 
-## Fichiers à créer
-
-### `background-job.md`
-
-Créer un fichier dédié pour documenter le background job. Actuellement décrit en quelques paragraphes dans `infra.md` mélangé avec la queue et le MCP. Le background job est un composant critique qui mérite sa propre doc.
-
-Ce que le fichier devra couvrir :
-- Déclenchement : event-driven via le file watcher chokidar, pas périodique. Se déclenche après chaque écriture, suppression, ou déplacement de fichier dans le vault.
-- Les quatre opérations dans l'ordre : calcul des tokens du fichier modifié, mise à jour de `tokens` et `updated` dans le frontmatter, régénération de `tree.md`, ré-indexation du fichier modifié dans QMD (uniquement le fichier concerné, pas un full re-scan).
-- La formule de calcul des tokens texte : `Math.ceil(text.length / 4)` — approximation suffisante, rapide, sans dépendance externe.
-- La prévention des boucles infinies : le background job écrit dans le vault (frontmatter, tree.md), ce qui déclenche le file watcher, qui pourrait re-déclencher le background job infiniment. Mécanisme : le système maintient un `Set` des paths en cours d'écriture par le background job. Le file watcher ignore les events sur ces paths.
-- Ce que le background job ne fait pas : il ne lit pas le contenu des fichiers pour en comprendre le sens, il ne prend pas de décisions, il ne logue pas dans le changelog. Il est entièrement déterministe.
-
-**Section features supplémentaires à inclure :**
-- Tokenisation des images : les images ont un coût en tokens qui dépend de leur résolution et format (pas `text.length / 4`). Les modèles de vision comme Claude ont des règles spécifiques par tile. Implémenter un tokeniser d'images pour que le champ `tokens` dans le frontmatter d'un fichier image reflète le coût réel de charger cette image dans le contexte d'un agent.
-
----
-
 ### `tools/search.md` (le tool, pas le fichier de compréhension)
 
 Ce fichier est recentré sur une seule chose : comment l'agent utilise le tool `search`. Beaucoup de ce qui est actuellement dans ce fichier migre vers le gros `search.md`.
@@ -82,9 +64,3 @@ Ce que le fichier devra couvrir :
 **Section features supplémentaires à inclure dans ce fichier :**
 - Filtrage par date (`date_from`, `date_to`) : explication complète du comportement sur changelogs vs autres fichiers, formats acceptés, cas d'usage.
 - Différenciation de la sortie entre MCP et interface web : le MVP retourne le même format partout, mais à terme l'interface pourrait avoir un rendu plus riche (fichiers cliquables, collapsibles) et l'API MCP un format plus programmatique.
-
----
-
-### Créer le fichier de répartition des tâches — Bima, Widium, Yvannof
-
-Un fichier simple qui assigne qui travaille sur quoi. Pas un Gantt — juste une liste claire de qui est responsable de quelles parties du système. Le split dépend des compétences et des préférences de chacun.
