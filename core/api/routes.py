@@ -1,42 +1,54 @@
+import asyncio
 import json
-import uuid
-import job_queue as queue
-import qmd
+
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from watcher import subscribe, unsubscribe
 
 router = APIRouter()
 
 
-class UpdatePayload(BaseModel):
-    content: str
-
-
-class SearchPayload(BaseModel):
-    query: str
-    mode: str = Field(default="fast", pattern="^(fast|deep)$")
-    scope: str = ""
-    limit: int = Field(default=5, ge=1, le=20)
-
-
-@router.post("/update")
-async def update(payload: UpdatePayload):
-    update_id = f"update-{uuid.uuid4().hex[:8]}"
-    await queue.put({"id": update_id, "payload": payload})
-    return {"status": "accepted", "id": update_id}
+class UpdateAndSearchPayload(BaseModel):
+    user_query: str
 
 
 @router.post("/search")
-async def search(payload: SearchPayload):
-    results = await qmd.search(
-        query=payload.query,
-        mode=payload.mode,
-        scope=payload.scope,
-        limit=payload.limit,
-    )
-    return {"query": payload.query, "results": results}
+async def search(payload: UpdateAndSearchPayload):
+    from agent.agent.search_agent import SearchAgent
+    from agent.logger import log_agent_event
+
+    agent = SearchAgent()
+    query_str = payload.user_query
+
+    def _run() -> str:
+        parts = []
+        for event in agent.process(query_str):
+            log_agent_event(event)
+            if event.get("type") == "answer" and not event.get("tool_calls"):
+                parts.append(event.get("content", ""))
+        return "".join(parts)
+
+    answer = await asyncio.to_thread(_run)
+    return {"queries": [query_str], "answer": answer} 
+
+
+@router.post("/update")
+async def update(payload: UpdateAndSearchPayload):
+    from agent.agent.update_agent import UpdateAgent
+    from agent.logger import log_agent_event
+    agent = UpdateAgent()
+
+    def _run() -> str:
+        parts = []
+        for event in agent.process(payload.user_query):
+            log_agent_event(event)
+            if event.get("type") == "answer" and not event.get("tool_calls"):
+                parts.append(event.get("content", ""))
+        return "".join(parts)
+
+    result = await asyncio.to_thread(_run)
+    return {"status": "processed", "result": result}
 
 
 @router.get("/sse")

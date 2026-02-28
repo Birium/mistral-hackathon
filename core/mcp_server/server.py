@@ -1,11 +1,7 @@
 from mcp.server.fastmcp import FastMCP
-from .tools import (
-    write,
-    search
-)
+from .tools import update, search
 
 mcp = FastMCP("knower")
 
-# Register all tools
+mcp.tool()(update)
 mcp.tool()(search)
-mcp.tool()(write)

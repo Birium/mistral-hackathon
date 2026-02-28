@@ -4,12 +4,12 @@ from typing import List, Optional, Generator
 
 from openai import OpenAI
 
-from schemas.message import Message, SystemMessage, AIMessage
-from schemas.tool import ToolCall
-from schemas.event import (
+from agent.schemas.message import Message, SystemMessage, AIMessage
+from agent.schemas.tool import ToolCall
+from agent.schemas.event import (
     BaseEvent, ThinkEvent, AnswerEvent, ToolEvent, UsageEvent, ErrorEvent
 )
-from llm.config import ModelConfig
+from agent.llm.config import ModelConfig
 
 
 class LLMClient:

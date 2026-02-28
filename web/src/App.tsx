@@ -13,16 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type SearchResult = {
-  docid: string
-  snippet?: string
-  context?: string
-  score?: number
-}
-
 type SearchResponse = {
-  query: string
-  results: SearchResult[]
+  queries: string[]
+  answer: string
 }
 
 export default function App() {
@@ -36,15 +29,13 @@ export default function App() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchMode, setSearchMode] = useState<"fast" | "deep">("fast")
-  const [searchScope, setSearchScope] = useState("")
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null)
   const [searchError, setSearchError] = useState("")
   const [isSearching, setIsSearching] = useState(false)
 
   const fetchTree = async () => {
     try {
-      const res = await fetch('/tree')
+      const res = await fetch("/tree")
       if (res.ok) {
         const data = await res.json()
         setTree(data.tree)
@@ -57,7 +48,7 @@ export default function App() {
   useEffect(() => {
     fetchTree()
 
-    const eventSource = new EventSource('/sse')
+    const eventSource = new EventSource("/sse")
 
     eventSource.onmessage = (event) => {
       try {
@@ -84,10 +75,10 @@ export default function App() {
     setIsUpdating(true)
     setUpdateStatus("Sending…")
     try {
-      const res = await fetch('/update', {
+      const res = await fetch("/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: updateContent }),
+        body: JSON.stringify({ user_query: updateContent }),
       })
       const data = await res.json()
       setUpdateStatus(`Accepted (ID: ${data.id})`)
@@ -104,14 +95,13 @@ export default function App() {
     setIsSearching(true)
     setSearchError("")
     setSearchResponse(null)
+
     try {
-      const res = await fetch('/search', {
+      const res = await fetch("/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: searchQuery,
-          mode: searchMode,
-          scope: searchScope.trim(),
+          user_query: searchQuery,
         }),
       })
       if (!res.ok) {
@@ -128,12 +118,13 @@ export default function App() {
     }
   }
 
-  const handleKeyDown = (callback: () => void) => (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      callback()
+  const handleKeyDown =
+    (callback: () => void) => (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault()
+        callback()
+      }
     }
-  }
 
   return (
     <div className="flex h-screen w-screen bg-background text-foreground overflow-hidden">
@@ -170,28 +161,11 @@ export default function App() {
                   onKeyDown={handleKeyDown(handleSearch)}
                   className="flex-1"
                 />
-                <Select
-                  value={searchMode}
-                  onValueChange={(v) => setSearchMode(v as "fast" | "deep")}
-                >
-                  <SelectTrigger className="w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fast">Fast</SelectItem>
-                    <SelectItem value="deep">Deep</SelectItem>
-                  </SelectContent>
-                </Select>
+
                 <Button onClick={handleSearch} disabled={isSearching}>
                   {isSearching ? "Searching…" : "Search"}
                 </Button>
               </div>
-
-              <Input
-                placeholder="Scope (optional): project:name"
-                value={searchScope}
-                onChange={(e) => setSearchScope(e.target.value)}
-              />
             </div>
 
             {searchError && (
@@ -199,39 +173,21 @@ export default function App() {
             )}
 
             {searchResponse && (
-              <div className="space-y-3 mt-4">
+              <div className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  {searchResponse.results.length} result(s) for{" "}
-                  <span className="font-mono">"{searchResponse.query}"</span>
+                  Answer for{" "}
+                  <span className="font-mono">
+                    "{searchResponse.queries.join(", ")}"
+                  </span>
                 </p>
-
-                {searchResponse.results.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No results found.</p>
+                {searchResponse.answer ? (
+                  <pre className="text-sm bg-muted/30 border rounded-md p-4 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    {searchResponse.answer}
+                  </pre>
                 ) : (
-                  searchResponse.results.map((r, i) => (
-                    <div
-                      key={i}
-                      className="border rounded-md p-4 bg-muted/30 space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-mono font-medium">
-                          {r.docid}
-                        </span>
-                        {r.score !== undefined && (
-                          <Badge variant="secondary">
-                            {typeof r.score === "number"
-                              ? r.score.toFixed(3)
-                              : r.score}
-                          </Badge>
-                        )}
-                      </div>
-                      {(r.snippet ?? r.context) && (
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {r.snippet ?? r.context}
-                        </p>
-                      )}
-                    </div>
-                  ))
+                  <p className="text-sm text-muted-foreground">
+                    No answer returned.
+                  </p>
                 )}
               </div>
             )}
@@ -253,7 +209,9 @@ export default function App() {
                 {isUpdating ? "Sending…" : "Send Update"}
               </Button>
               {updateStatus && (
-                <span className="text-sm text-muted-foreground">{updateStatus}</span>
+                <span className="text-sm text-muted-foreground">
+                  {updateStatus}
+                </span>
               )}
             </div>
           </TabsContent>
