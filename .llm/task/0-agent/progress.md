@@ -105,3 +105,24 @@
 
 -   **Validation de la Boucle Agentique :**
     -   **Exécution N-itérations fonctionnelle :** Test et validation d'une boucle agentique complète. Le modèle est désormais capable d'enchaîner de multiples itérations (ex: 4 passes) de manière autonome : il génère des blocs de réflexion (`<think>`), déclenche un ou plusieurs outils simultanément (ex: `tree` puis de multiples `read`), analyse les retours factices, et décide naturellement de sortir de la boucle pour formuler sa réponse textuelle finale.
+
+### ✅ **Phase 6 : Implémentation du Système d'Outils (Tools) et Résolution des Chemins du Vault**
+
+-   **Centralisation et Définition du Registre d'Outils :**
+    -   **Création du module unifié :** Remplacement de l'ancien système temporaire par un registre complet implémentant les 9 outils définis dans la spécification du MVP (`tree`, `read`, `search`, `write`, `edit`, `append`, `move`, `delete`, `concat`).
+    -   **[`tools/tools.py`] :** Création du fichier central. Les outils d'écriture, de recherche sémantique et de manipulation de fichiers (`write`, `edit`, `append`, `move`, `delete`, `search`, `concat`) ont été initialisés sous forme de *dummy functions* retournant des chaînes formatées. Cela permet de valider la logique de *tool calling* du LLM avant de brancher les véritables actions système.
+    -   **Ségrégation des accès (RBAC) :** Définition de deux listes exportées distinctes : `SEARCH_TOOLS` (lecture seule : `tree`, `read`, `search`, `concat`) et `UPDATE_TOOLS` (accès complet, sans `concat`).
+    -   **Nettoyage :** Suppression définitive de l'ancien fichier `tools/dummy_tools.py`.
+
+-   **Implémentation Réelle des Outils de Lecture et Navigation :**
+    -   **[`tools/tools.py` - `read`] :** Transformation du *dummy* en véritable implémentation lisant le système de fichiers. Ajout de la logique de budget de tokens via les paramètres `head` et `tail` (approximation à 4 caractères par token) pour tronquer intelligemment les longs fichiers. Implémentation du formatage automatique des retours : chaque ligne est préfixée par son numéro absolu (`N  | content`), et le tout est encapsulé dans un bloc de code Markdown avec le chemin du fichier en en-tête.
+    -   **[`tools/tools.py` - `tree`] :** Câblage de l'outil sur l'implémentation réelle existante (`core/functions/tree`), permettant à l'agent de scanner dynamiquement l'arborescence du vault avec le décompte des tokens et les timestamps.
+
+-   **Résolution Robuste des Chemins (Path Resolution) :**
+    -   **[`tools/tools.py` - `_resolve_path`] :** Création d'un helper critique pour normaliser les chemins générés par le LLM. Il gère les noms de fichiers simples (`overview.md`), les chemins préfixés (`vault/projects/...`), et les alias de racine (`.`, `./`, `vault/`).
+    -   **Support des environnements locaux :** Ajout de `.resolve()` sur `Path(env.VAULT_PATH)` pour convertir dynamiquement les chemins relatifs du `.env` (ex: `../vault`) en chemins absolus basés sur le contexte d'exécution (`cwd`). Cela corrige l'erreur `Path does not exist: /vault` rencontrée en local.
+    -   **Fix du scope de `tree` :** Application de `_resolve_path` à l'outil `tree`. Cela corrige un bug majeur où l'appel `tree(".")` scannait le répertoire du code source Python au lieu du vault, ce qui entraînait des crashs de décodage UTF-8 en tentant de lire les métadonnées de fichiers binaires compilés (`.pyc`).
+
+-   **Mise à jour et Simplification des Agents :**
+    -   **[`agent/search_agent.py` & `agent/update_agent.py`] :** Injection des nouvelles listes `SEARCH_TOOLS` et `UPDATE_TOOLS` dans l'initialisation des agents respectifs, garantissant que l'agent de recherche ne peut physiquement pas altérer le vault.
+    -   **Refactoring de `_load_vault_context` :** Simplification drastique de la méthode. Puisque le nouvel outil `read` retourne désormais le contenu pré-formaté avec des blocs Markdown et le nom du fichier, les ajouts manuels d'en-têtes (`## overview.md\n`) ont été retirés. Les appels aux fichiers de contexte (`overview.md`, `tree.md`, `profile.md`) sont maintenant de simples concaténations directes. Le *lazy import* de la fonction `read` a également été remonté au niveau du module.
