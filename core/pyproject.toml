@@ -1,0 +1,24 @@
+[project]
+name = "knower-core"
+version = "0.1.0"
+description = "Knower Core Services"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "mcp[cli]",
+  "watchdog",
+  "python-frontmatter",
+  "pyyaml",
+  "httpx",
+  "sse-starlette",
+]
+
+[build-system]
+requires = ["setuptools>=72", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "mcp_server*"]
