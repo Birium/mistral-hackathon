@@ -20,7 +20,7 @@ class SearchAgent(BaseAgent):
     def _load_vault_context(self) -> str:
         try:
             overview = read("overview.md")
-            vault_tree = tree("vault/", depth=1)
+            vault_tree = f"```tree.md\n{tree('vault/', depth=1)}\n```"
             profile = read("profile.md")
             return f"{overview}\n\n{vault_tree}\n\n{profile}"
         except Exception as e:
