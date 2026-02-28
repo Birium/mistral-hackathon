@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Knower — Architecture</title>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap");
+
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                --bg: #0c0e12;
+                --surface: #13161c;
+                --surface2: #1a1e27;
+                --border: #232733;
+                --border2: #2e3447;
+                --text: #e8eaf0;
+                --muted: #6b7280;
+                --accent-blue: #4f8ef7;
+                --accent-green: #3ecf8e;
+                --accent-orange: #f97316;
+                --accent-purple: #a78bfa;
+                --accent-yellow: #fbbf24;
+                --accent-red: #f87171;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--text);
+                font-family: "JetBrains Mono", monospace;
+                min-height: 100vh;
+                padding: 48px 32px;
+            }
+
+            h1 {
+                font-family: "Syne", sans-serif;
+                font-weight: 800;
+                font-size: 28px;
+                letter-spacing: -0.5px;
+                margin-bottom: 6px;
+            }
+
+            .subtitle {
+                color: var(--muted);
+                font-size: 12px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                margin-bottom: 48px;
+            }
+
+            .box {
+                border: 1px solid var(--border);
+                background: var(--surface);
+                border-radius: 8px;
+                padding: 14px 16px;
+                position: relative;
+            }
+
+            .box-label {
+                font-family: "Syne", sans-serif;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                margin-bottom: 6px;
+            }
+
+            .box-desc {
+                font-size: 10px;
+                color: var(--muted);
+                line-height: 1.6;
+            }
+
+            .tag {
+                display: inline-block;
+                font-size: 9px;
+                font-weight: 600;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                padding: 2px 6px;
+                border-radius: 3px;
+                margin-top: 6px;
+            }
+
+            .blue {
+                border-color: var(--accent-blue);
+            }
+            .blue .box-label {
+                color: var(--accent-blue);
+            }
+            .blue .tag {
+                background: rgba(79, 142, 247, 0.15);
+                color: var(--accent-blue);
+            }
+
+            .green {
+                border-color: var(--accent-green);
+            }
+            .green .box-label {
+                color: var(--accent-green);
+            }
+            .green .tag {
+                background: rgba(62, 207, 142, 0.15);
+                color: var(--accent-green);
+            }
+
+            .orange {
+                border-color: var(--accent-orange);
+            }
+            .orange .box-label {
+                color: var(--accent-orange);
+            }
+            .orange .tag {
+                background: rgba(249, 115, 22, 0.15);
+                color: var(--accent-orange);
+            }
+
+            .purple {
+                border-color: var(--accent-purple);
+            }
+            .purple .box-label {
+                color: var(--accent-purple);
+            }
+            .purple .tag {
+                background: rgba(167, 139, 250, 0.15);
+                color: var(--accent-purple);
+            }
+
+            .yellow {
+                border-color: var(--accent-yellow);
+            }
+            .yellow .box-label {
+                color: var(--accent-yellow);
+            }
+            .yellow .tag {
+                background: rgba(251, 191, 36, 0.15);
+                color: var(--accent-yellow);
+            }
+
+            .red {
+                border-color: var(--accent-red);
+            }
+            .red .box-label {
+                color: var(--accent-red);
+            }
+            .red .tag {
+                background: rgba(248, 113, 113, 0.15);
+                color: var(--accent-red);
+            }
+
+            .small-tag {
+                font-size: 9px;
+                color: var(--muted);
+                background: var(--surface2);
+                border-radius: 3px;
+                padding: 1px 5px;
+                display: inline-block;
+                margin: 2px 2px 0 0;
+            }
+
+            .cli-badge {
+                display: inline-flex;
+                align-items: center;
+                background: var(--surface2);
+                border: 1px solid var(--border2);
+                border-radius: 5px;
+                padding: 3px 8px;
+                font-size: 10px;
+                color: var(--accent-green);
+                margin-right: 4px;
+                margin-top: 4px;
+            }
+
+            .inner-arrow {
+                text-align: center;
+                font-size: 11px;
+                color: var(--border2);
+                padding: 3px 0;
+                font-size: 10px;
+            }
+
+            .docker-wrapper {
+                border: 1px dashed var(--border2);
+                border-radius: 12px;
+                padding: 20px;
+                position: relative;
+                background: rgba(255, 255, 255, 0.01);
+                margin-bottom: 20px;
+            }
+
+            .docker-label {
+                position: absolute;
+                top: -10px;
+                left: 16px;
+                background: var(--bg);
+                padding: 0 8px;
+                font-size: 9px;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: var(--muted);
+                font-weight: 600;
+            }
+
+            .legend {
+                display: flex;
+                gap: 20px;
+                flex-wrap: wrap;
+                border-top: 1px solid var(--border);
+                padding-top: 20px;
+                margin-top: 32px;
+            }
+
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 10px;
+                color: var(--muted);
+            }
+
+            .legend-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 2px;
+            }
+        </style>
+    </head>
+    <body>
+        <div style="max-width: 960px; margin: 0 auto">
+            <div style="margin-bottom: 32px">
+                <h1>Knower — System Architecture</h1>
+                <div class="subtitle">
+                    MVP · Local · Docker Compose · All Python
+                </div>
+            </div>
+
+            <!-- ENTRY POINT -->
+            <div style="margin-bottom: 28px">
+                <div
+                    style="
+                        font-family: &quot;Syne&quot;, sans-serif;
+                        font-size: 11px;
+                        font-weight: 700;
+                        letter-spacing: 0.12em;
+                        text-transform: uppercase;
+                        color: var(--accent-green);
+                        margin-bottom: 10px;
+                    "
+                >
+                    Entry Point
+                </div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap">
+                    <div class="box green" style="flex: 1; min-width: 200px">
+                        <div class="box-label">Install</div>
+                        <div
+                            class="box-desc"
+                            style="
+                                color: var(--accent-green);
+                                font-size: 11px;
+                                margin-bottom: 6px;
+                            "
+                        >
+                            curl -fsSL …/install.sh | bash
+                        </div>
+                        <div class="box-desc">
+                            Clone →
+                            <code style="color: var(--text)">~/.knower</code
+                            ><br />Symlink →
+                            <code style="color: var(--text)"
+                                >/usr/local/bin/knower</code
+                            ><br />Check Docker present
+                        </div>
+                    </div>
+                    <div class="box blue" style="flex: 2; min-width: 280px">
+                        <div class="box-label">knower CLI — bash wrapper</div>
+                        <div
+                            style="
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 2px;
+                                margin-top: 4px;
+                            "
+                        >
+                            <span class="cli-badge">knower start</span>
+                            <span class="cli-badge">knower stop</span>
+                            <span class="cli-badge">knower visualize</span>
+                            <span class="cli-badge">knower status</span>
+                            <span class="cli-badge">knower vault</span>
+                        </div>
+                        <div class="box-desc" style="margin-top: 8px">
+                            start →
+                            <code style="color: var(--text)"
+                                >docker compose --profile core up -d</code
+                            ><br />
+                            visualize →
+                            <code style="color: var(--text)"
+                                >docker compose --profile web up -d</code
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DOCKER COMPOSE -->
+            <div class="docker-wrapper">
+                <div class="docker-label">docker-compose.yml</div>
+
+                <div
+                    style="
+                        display: flex;
+                        gap: 8px;
+                        margin-bottom: 16px;
+                        align-items: center;
+                    "
+                >
+                    <div
+                        style="
+                            font-size: 9px;
+                            color: var(--muted);
+                            letter-spacing: 0.1em;
+                            text-transform: uppercase;
+                        "
+                    >
+                        Profiles ›
+                    </div>
+                    <div
+                        style="
+                            font-size: 9px;
+                            background: rgba(79, 142, 247, 0.12);
+                            color: var(--accent-blue);
+                            border: 1px solid rgba(79, 142, 247, 0.3);
+                            border-radius: 3px;
+                            padding: 2px 7px;
+                        "
+                    >
+                        core
+                    </div>
+                    <div
+                        style="
+                            font-size: 9px;
+                            background: rgba(167, 139, 250, 0.12);
+                            color: var(--accent-purple);
+                            border: 1px solid rgba(167, 139, 250, 0.3);
+                            border-radius: 3px;
+                            padding: 2px 7px;
+                        "
+                    >
+                        web
+                    </div>
+                    <div
+                        style="
+                            font-size: 9px;
+                            background: rgba(251, 191, 36, 0.12);
+                            color: var(--accent-yellow);
+                            border: 1px solid rgba(251, 191, 36, 0.3);
+                            border-radius: 3px;
+                            padding: 2px 7px;
+                        "
+                    >
+                        all
+                    </div>
+                    <div
+                        style="
+                            font-size: 9px;
+                            color: var(--muted);
+                            margin-left: 8px;
+                        "
+                    >
+                        3 services total
+                    </div>
+                </div>
+
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 12px;
+                    "
+                >
+                    <!-- LEFT: Clients -->
+                    <div
+                        style="display: flex; flex-direction: column; gap: 8px"
+                    >
+                        <div
+                            style="
+                                font-size: 9px;
+                                color: var(--muted);
+                                letter-spacing: 0.1em;
+                                text-transform: uppercase;
+                                margin-bottom: 2px;
+                            "
+                        >
+                            Clients
+                        </div>
+
+                        <div
+                            class="box purple"
+                            style="background: rgba(167, 139, 250, 0.04)"
+                        >
+                            <div class="box-label">Web App — React</div>
+                            <div class="box-desc">
+                                Vite + Shadcn/Tailwind<br />Build statique servi
+                                par core<br />En dev : Vite proxy → core:8000
+                            </div>
+                            <span class="tag">profile: web</span>
+                        </div>
+
+                        <div
+                            style="
+                                text-align: center;
+                                font-size: 10px;
+                                color: var(--border2);
+                                padding: 2px;
+                            "
+                        >
+                            ↕ HTTP localhost:8000
+                        </div>
+
+                        <div
+                            class="box orange"
+                            style="background: rgba(249, 115, 22, 0.04)"
+                        >
+                            <div class="box-label">Claude Code</div>
+                            <div class="box-desc">
+                                External MCP client<br />Connects to MCP server
+                                via localhost
+                            </div>
+                            <span class="tag">external</span>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Python Core -->
+                    <div
+                        style="display: flex; flex-direction: column; gap: 6px"
+                    >
+                        <div
+                            style="
+                                font-size: 9px;
+                                color: var(--muted);
+                                letter-spacing: 0.1em;
+                                text-transform: uppercase;
+                                margin-bottom: 2px;
+                            "
+                        >
+                            Core — Python / FastAPI &nbsp;<span
+                                style="
+                                    color: var(--accent-blue);
+                                    font-size: 9px;
+                                "
+                                >profile: core</span
+                            >
+                        </div>
+
+                        <div class="box blue">
+                            <div class="box-label">
+                                FastAPI — HTTP + MCP Server
+                            </div>
+                            <div class="box-desc">
+                                Single entrypoint on port 8000
+                            </div>
+                            <div
+                                style="
+                                    margin-top: 6px;
+                                    display: flex;
+                                    flex-wrap: wrap;
+                                    gap: 3px;
+                                "
+                            >
+                                <span class="small-tag"
+                                    >POST /update → ack + queue</span
+                                >
+                                <span class="small-tag"
+                                    >POST /search → sync</span
+                                >
+                                <span class="small-tag"
+                                    >GET /sse → file events</span
+                                >
+                                <span class="small-tag"
+                                    >GET /static → web app</span
+                                >
+                            </div>
+                        </div>
+
+                        <div class="inner-arrow">↓ asyncio queue</div>
+
+                        <div
+                            style="
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 6px;
+                            "
+                        >
+                            <div class="box yellow">
+                                <div class="box-label">Update Agent</div>
+                                <div class="box-desc">
+                                    Loads overview + tree + profile<br />Routes
+                                    info<br />Writes vault<br />Logs changelog
+                                </div>
+                            </div>
+                            <div class="box yellow" style="opacity: 0.85">
+                                <div class="box-label">Search Agent</div>
+                                <div class="box-desc">
+                                    Loads overview + tree + profile<br />Calls
+                                    Qdrant<br />Concat engine<br />Read-only
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="inner-arrow">
+                            ↓ watchdog events on vault/
+                        </div>
+
+                        <div
+                            style="
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 6px;
+                            "
+                        >
+                            <div class="box orange">
+                                <div class="box-label">File Watcher</div>
+                                <div class="box-desc">
+                                    watchdog on vault/<br />→ SSE to frontend<br />→
+                                    triggers background job<br />Ignores own
+                                    writes
+                                </div>
+                            </div>
+                            <div class="box orange" style="opacity: 0.85">
+                                <div class="box-label">Background Job</div>
+                                <div class="box-desc">
+                                    Per file write:<br />tokens + frontmatter<br />tree.md
+                                    regen<br />Qdrant re-index
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Qdrant -->
+                <div style="margin-top: 12px; display: flex; gap: 12px">
+                    <div class="box red" style="flex: 1">
+                        <div
+                            style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                flex-wrap: wrap;
+                                gap: 8px;
+                            "
+                        >
+                            <div>
+                                <div class="box-label">Qdrant — Vector DB</div>
+                                <div class="box-desc">
+                                    BM25 fast search + semantic deep search ·
+                                    port 6333 · called by both agents
+                                </div>
+                            </div>
+                            <span class="tag">profile: core</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vault -->
+                <div
+                    style="
+                        border-top: 1px dashed var(--border2);
+                        margin-top: 16px;
+                        padding-top: 16px;
+                    "
+                >
+                    <div
+                        style="
+                            font-size: 9px;
+                            color: var(--muted);
+                            letter-spacing: 0.1em;
+                            text-transform: uppercase;
+                            margin-bottom: 10px;
+                        "
+                    >
+                        Shared Volume · Mounted on host filesystem
+                    </div>
+                    <div
+                        class="box green"
+                        style="background: rgba(62, 207, 142, 0.03)"
+                    >
+                        <div
+                            style="
+                                display: flex;
+                                justify-content: space-between;
+                                flex-wrap: wrap;
+                                gap: 12px;
+                                align-items: center;
+                            "
+                        >
+                            <div>
+                                <div
+                                    class="box-label"
+                                    style="margin-bottom: 4px"
+                                >
+                                    vault/
+                                </div>
+                                <div class="box-desc">
+                                    overview.md · tree.md · profile.md ·
+                                    tasks.md · changelog.md · inbox/ · bucket/ ·
+                                    projects/
+                                </div>
+                            </div>
+                            <div
+                                style="
+                                    text-align: right;
+                                    font-size: 10px;
+                                    color: var(--muted);
+                                "
+                            >
+                                Docker volume<br />← readable from host<br />(VS
+                                Code, terminal, Finder)
+                            </div>
+                        </div>
+                        <span class="tag"
+                            >source of truth · plain markdown</span
+                        >
+                    </div>
+                </div>
+            </div>
+            <!-- end docker-wrapper -->
+
+            <!-- DATA FLOWS -->
+            <div
+                style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                "
+            >
+                <div
+                    style="
+                        padding: 16px;
+                        background: var(--surface);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                    "
+                >
+                    <div
+                        style="
+                            font-size: 10px;
+                            color: var(--accent-blue);
+                            font-weight: 600;
+                            margin-bottom: 8px;
+                            font-family: &quot;Syne&quot;, sans-serif;
+                            letter-spacing: 0.08em;
+                        "
+                    >
+                        UPDATE PATH
+                    </div>
+                    <div
+                        style="
+                            font-size: 10px;
+                            color: var(--muted);
+                            line-height: 2;
+                        "
+                    >
+                        Client → POST /update<br />
+                        → ack immediately<br />
+                        → pipeline (text/images as-is)<br />
+                        → asyncio sequential queue<br />
+                        → Update Agent writes vault<br />
+                        → watchdog event<br />
+                        → Background Job (tokens + tree.md + Qdrant)<br />
+                        → SSE → frontend re-renders
+                    </div>
+                </div>
+                <div
+                    style="
+                        padding: 16px;
+                        background: var(--surface);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                    "
+                >
+                    <div
+                        style="
+                            font-size: 10px;
+                            color: var(--accent-yellow);
+                            font-weight: 600;
+                            margin-bottom: 8px;
+                            font-family: &quot;Syne&quot;, sans-serif;
+                            letter-spacing: 0.08em;
+                        "
+                    >
+                        SEARCH PATH
+                    </div>
+                    <div
+                        style="
+                            font-size: 10px;
+                            color: var(--muted);
+                            line-height: 2;
+                        "
+                    >
+                        Client → POST /search<br />
+                        → synchronous, no queue<br />
+                        → Search Agent (read-only)<br />
+                        → loads overview + tree + profile<br />
+                        → Qdrant (BM25 or semantic)<br />
+                        → Concat Engine assembles<br />
+                        → Markdown response returned
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEGEND -->
+            <div class="legend">
+                <div class="legend-item">
+                    <div
+                        class="legend-dot"
+                        style="background: var(--accent-blue)"
+                    ></div>
+                    FastAPI layer
+                </div>
+                <div class="legend-item">
+                    <div
+                        class="legend-dot"
+                        style="background: var(--accent-yellow)"
+                    ></div>
+                    AI agents (Python)
+                </div>
+                <div class="legend-item">
+                    <div
+                        class="legend-dot"
+                        style="background: var(--accent-orange)"
+                    ></div>
+                    Background jobs (Python)
+                </div>
+                <div class="legend-item">
+                    <div
+                        class="legend-dot"
+                        style="background: var(--accent-green)"
+                    ></div>
+                    Vault / filesystem
+                </div>
+                <div class="legend-item">
+                    <div
+                        class="legend-dot"
+                        style="background: var(--accent-purple)"
+                    ></div>
+                    Frontend (React)
+                </div>
+                <div class="legend-item">
+                    <div
+                        class="legend-dot"
+                        style="background: var(--accent-red)"
+                    ></div>
+                    Qdrant
+                </div>
+                <div class="legend-item">
+                    <div
+                        style="
+                            width: 20px;
+                            height: 1px;
+                            border-top: 1px dashed var(--border2);
+                        "
+                    ></div>
+                    Docker Compose boundary
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
