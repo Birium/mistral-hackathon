@@ -1,19 +1,17 @@
 # y-knot core toolkit — LLM reference
 
-Two packages for managing a Markdown vault: `frontmatter` tracks metadata (timestamps, token counts) in a fixed YAML header, `tree` scans and renders the vault structure with that metadata.
+Two packages for managing a Markdown vault: `frontmatter` tracks token counts in a fixed YAML header, `tree` scans and renders the vault structure with that metadata. Timestamps are read from OS filesystem metadata, not stored in frontmatter.
 
 ---
 
 ## Vault file format
 
-Every vault file begins with a fixed 5-line frontmatter block:
+Every vault file begins with a fixed 3-line frontmatter block:
 
 ```
----                              # line 0  FM.delimiter_start
-created: 2025-02-28T10:00:00    # line 1  FM.created      / FM.created_key
-updated: 2025-02-28T10:00:00    # line 2  FM.updated      / FM.updated_key
-tokens: 1500                    # line 3  FM.tokens       / FM.tokens_key
----                              # line 4  FM.delimiter_end
+---            # line 0  FM.delimiter_start
+tokens: 1500   # line 1  FM.tokens       / FM.tokens_key
+---            # line 2  FM.delimiter_end
 ```
 
 - Layout is fixed; order must not change.
@@ -26,8 +24,6 @@ tokens: 1500                    # line 3  FM.tokens       / FM.tokens_key
 ```python
 from functions.frontmatter import (
     FM,
-    read_created, update_created,
-    read_updated, update_updated,
     read_tokens, update_tokens, count_tokens, format_tokens,
 )
 ```
@@ -36,26 +32,8 @@ from functions.frontmatter import (
 
 | Attribute | Value | Type |
 |-----------|-------|------|
-| `FM.created` | 1 | int (line index) |
-| `FM.updated` | 2 | int (line index) |
-| `FM.tokens` | 3 | int (line index) |
-| `FM.created_key` | `"created"` | str |
-| `FM.updated_key` | `"updated"` | str |
+| `FM.tokens` | 1 | int (line index) |
 | `FM.tokens_key` | `"tokens"` | str |
-
-### created field
-
-| Function | Signature | Returns | When to call |
-|----------|-----------|---------|--------------|
-| `update_created` | `(path: str\|Path) -> datetime` | datetime written | **Once**, at file creation |
-| `read_created` | `(path: str\|Path) -> datetime\|None` | datetime or None | Any time |
-
-### updated field
-
-| Function | Signature | Returns | When to call |
-|----------|-----------|---------|--------------|
-| `update_updated` | `(path: str\|Path) -> datetime` | datetime written | Every modification |
-| `read_updated` | `(path: str\|Path) -> datetime\|None` | datetime or None | Any time |
 
 ### tokens field
 
@@ -74,7 +52,63 @@ from functions.frontmatter import (
 | `write_frontmatter` | `(path, data, body="") -> None` | Overwrites entire file |
 | `update_frontmatter` | `(path, updates, line=None) -> None` | Merges updates; preserves body |
 
-Import from `functions.frontmatter.io` if needed — field submodules (`created/`, `updated/`, `tokens/`) use these internally.
+Import from `functions.frontmatter.io` if needed — the `tokens/` submodule uses these internally.
+
+---
+
+## Workflows
+
+### New file
+
+Write the frontmatter with `tokens: 0`, then update tokens after writing the body.
+
+```python
+from pathlib import Path
+from functions.frontmatter import update_tokens
+from functions.frontmatter.io import write_frontmatter
+
+path = Path("vault/notes/foo.md")
+
+# Write initial frontmatter + body
+write_frontmatter(path, data={}, body="# My Note\n\nContent here.")
+
+# Compute and store token count
+update_tokens(path)
+```
+
+### File modification
+
+Call `update_tokens` whenever the file body changes.
+
+```python
+from functions.frontmatter import update_tokens
+
+path = "vault/notes/foo.md"
+# ... write new body content to the file ...
+update_tokens(path)    # recount tokens from full file
+```
+
+### Display metadata
+
+Read tokens and OS timestamps for display.
+
+```python
+from datetime import datetime, timezone
+from pathlib import Path
+from functions.frontmatter import read_tokens, format_tokens
+
+path = Path("vault/notes/foo.md")
+stat = path.stat()
+
+created = datetime.fromtimestamp(getattr(stat, "st_birthtime", stat.st_mtime), tz=timezone.utc)
+updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
+print(f"created:  {created}")
+print(f"updated:  {updated}")
+
+tokens = read_tokens(path)
+print(f"tokens:   {tokens} ({format_tokens(tokens)})")
+# tokens:   9300 (9.3k)
+```
 
 ---
 
@@ -117,9 +151,8 @@ At depth boundary, collapsed directories show: `... N files, M folders`
 
 ## Invariants and constraints
 
-- **Never call `update_created` more than once per file.** It overwrites the creation timestamp.
 - **`FM` is the single source of truth** for line positions. Do not hardcode line numbers.
 - **`count_tokens` is a placeholder** (~4 chars/token). Replace with a real tokenizer (e.g. `tiktoken`) by implementing the same `(str) -> int` signature in `tokens/count.py`.
-- **Functions never raise.** On error they print a warning prefixed with the function name and return a safe default: `{}` (read_frontmatter), `None` (read_created/read_updated), `0` (read_tokens). Callers do not need try/except.
+- **Functions never raise.** On error they print a warning prefixed with the function name and return a safe default: `{}` (read_frontmatter), `0` (read_tokens). Callers do not need try/except.
 - **Hidden files, symlinks, and binary files** are skipped by the tree scanner. Binary files contribute 0 tokens.
 - **Body content is always preserved** by `update_frontmatter` and `update_tokens`.
