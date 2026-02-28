@@ -8,6 +8,7 @@ services:
       - "qmd_cache:/root/.cache/qmd"
     environment:
       - VAULT_PATH=/vault
+      - NODE_LLAMA_CPP_GPU=false
 
   web:
     build: ./web
