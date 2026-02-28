@@ -20,3 +20,5 @@ core/build/
 
 # macOS
 .DS_Store
+
+*.egg-info
