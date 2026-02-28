@@ -22,21 +22,6 @@ The layout is fixed: `created` is always line 1, `updated` line 2, `tokens` line
 
 Imported from `functions.frontmatter`:
 
-### `read_frontmatter(path, line=None) -> dict`
-Reads frontmatter from a Markdown file.
-- Without `line`: parses and returns the full frontmatter as a dict.
-- With `line` (int, zero-indexed): reads only that single line and returns a one-key dict. Faster — skips full YAML parsing.
-- Returns `{}` on missing frontmatter, parse errors, or missing line.
-
-### `write_frontmatter(path, data, body="") -> None`
-Overwrites the file entirely with new frontmatter + optional body.
-Use this when creating a new file or replacing all frontmatter at once.
-
-### `update_frontmatter(path, updates, line=None) -> None`
-Merges updates into existing frontmatter without touching the body.
-- Without `line`: parses the full block, merges the updates dict in, rewrites.
-- With `line` (int, zero-indexed): replaces only that line in-place. No YAML parsing of the rest — used for hot-path updates like token counts.
-
 ### `FM` — the layout constant
 An instance of `FrontMatterLayout` (from `layout.py`) that holds the line positions and YAML key names:
 
@@ -51,39 +36,63 @@ FM.tokens_key     # "tokens"
 
 Always use `FM` to reference positions and key names — never hardcode integers or strings.
 
-## Internal files
+### `created` field
+- `update_created(path) -> datetime` — writes the current datetime to the `created` line. Call once at file creation; never call again.
+- `read_created(path) -> datetime | None` — reads the `created` timestamp.
 
-| File | Role |
-|---|---|
-| `layout.py` | Defines `FrontMatterLayout` dataclass and the `FM` singleton constant |
-| `reader.py` | Implements `read_frontmatter` |
-| `writer.py` | Implements `write_frontmatter` |
-| `updater.py` | Implements `update_frontmatter` |
-| `utils.py` | `iter_frontmatter_lines()` — internal generator that streams raw lines between the `---` delimiters |
+### `updated` field
+- `update_updated(path) -> datetime` — writes the current datetime to the `updated` line. Call on every modification.
+- `read_updated(path) -> datetime | None` — reads the `updated` timestamp.
+
+### `tokens` field
+- `read_tokens(path) -> int` — reads the token count from frontmatter.
+- `update_tokens(path) -> int` — writes a new token count; returns the new value.
+- `count_tokens(content) -> int` — approximates token count from a string (~4 chars/token). Drop-in replacement point for a real tokenizer.
+- `format_tokens(n) -> str` — formats a count for display: `420`, `9.3k`, `1.2M`.
+
+## Package structure
+
+```
+frontmatter/
+├── layout.py       — FM singleton (shared by all submodules)
+├── io/             — raw file I/O layer
+│   ├── reader.py   — read_frontmatter
+│   ├── writer.py   — write_frontmatter
+│   ├── updater.py  — update_frontmatter
+│   └── utils.py    — iter_frontmatter_lines (internal generator)
+├── tokens/         — tokens field operations
+├── created/        — created field operations
+└── updated/        — updated field operations
+```
+
+`io/` is the only layer that touches the file directly. Field submodules (`tokens/`, `created/`, `updated/`) build on top of `io/` and `layout.py` — nothing outside this package needs to import from `io/` directly.
 
 ## Usage examples
 
 ```python
-from functions.frontmatter import read_frontmatter, write_frontmatter, update_frontmatter, FM
+from functions.frontmatter import (
+    FM,
+    update_created, read_created,
+    update_updated, read_updated,
+    read_tokens, update_tokens, count_tokens, format_tokens,
+)
 
-# Read full frontmatter
-data = read_frontmatter("vault/notes/foo.md")
-# {'created': '2025-02-28', 'updated': '2025-02-28', 'tokens': 1500}
+# On file creation
+update_created("vault/notes/foo.md")
 
-# Read only the tokens line (fast path)
-data = read_frontmatter("vault/notes/foo.md", line=FM.tokens)
-# {'tokens': 1500}
+# On file modification
+update_updated("vault/notes/foo.md")
 
-# Update only the tokens line in-place (fast path)
-update_frontmatter("vault/notes/foo.md", {FM.tokens_key: 2000}, line=FM.tokens)
+# Read timestamps
+created_at = read_created("vault/notes/foo.md")   # datetime | None
+updated_at = read_updated("vault/notes/foo.md")   # datetime | None
 
-# Merge multiple fields into the full block
-update_frontmatter("vault/notes/foo.md", {"updated": "2025-03-01", "tokens": 2000})
-
-# Create or overwrite a file
-write_frontmatter("vault/notes/new.md", {"created": "2025-03-01", "updated": "2025-03-01", "tokens": 0}, body="# Title\n")
+# Token counting and display
+n = count_tokens(body_text)
+update_tokens("vault/notes/foo.md")
+print(format_tokens(read_tokens("vault/notes/foo.md")))  # e.g. "9.3k"
 ```
 
 ## Error handling
 
-All three public functions catch exceptions internally and print a warning prefixed with the function name (e.g. `[read_frontmatter] error ...`). They never raise — callers get `{}` or `None` on failure.
+All read/write functions catch exceptions internally and print a warning prefixed with the function name (e.g. `[read_frontmatter] error ...`). They never raise — callers get `{}`, `None`, or `0` on failure.
