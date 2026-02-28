@@ -24,7 +24,7 @@ from typing import Optional, List
 
 from agent.tools.tool_base import BaseTool
 from functions.utils import _resolve_path
-from functions.tree import tree as _tree_impl
+from functions.tree import get_tree as _tree_impl
 from functions.delete import delete as _delete_impl
 from functions.search import search as _search_impl
 from functions.write import write as _write_impl
@@ -39,7 +39,7 @@ from functions.concat import concat as _concat_impl
 # ---------------------------------------------------------------------------
 
 
-def tree(path: str = "vault/", depth: Optional[int] = None) -> str:
+def tree(path: str = "", depth: Optional[int] = None) -> str:
     """Explore the structure of the vault with token counts and timestamps.
 
     Args:
@@ -108,7 +108,7 @@ def search(
 
     if not results:
         return f"No results found for: {queries}"
-    
+
     logger = logging.getLogger(__name__)
 
     logger.info(f"[search] returning {len(results)} results for queries={queries} with scopes={scopes}")
