@@ -9,9 +9,10 @@ case "$1" in
   visualize) docker compose --profile web up -d ;;
   status)    docker compose ps ;;
   vault)     open "$KNOWER_DIR/vault" ;;  # macOS only
-  help)      echo "Usage: knower {start|stop|visualize|status|vault}" ;;
+  shell)     docker compose exec -it core bash ;;
+  help)      echo "Usage: knower {start|stop|clean|visualize|status|vault|shell}" ;;
   *)
-    echo "Usage: knower {start|stop|visualize|status|vault}"
+    echo "Usage: knower {start|stop|clean|visualize|status|vault|shell}"
     exit 1
     ;;
 esac

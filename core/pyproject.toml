@@ -3,16 +3,22 @@ name = "knower-core"
 version = "0.1.0"
 description = "Knower Core Services"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
-  "fastapi",
-  "uvicorn[standard]",
-  "mcp[cli]",
-  "watchdog",
-  "python-frontmatter",
-  "pyyaml",
-  "httpx",
-  "sse-starlette",
+    "fastapi",
+    "uvicorn[standard]",
+    "mcp[cli]",
+    "watchdog",
+    "python-frontmatter",
+    "pyyaml",
+    "httpx",
+    "sse-starlette",
+    "openai",
+    "pydantic-settings",
+    "langchain>=0.3.26,<1.0.0",
+    "langchain-community==0.3.27",
+    "langchain-core==0.3.81",
+    "langchain-openai==0.3.8"
 ]
 
 [build-system]
@@ -21,4 +27,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["api*", "mcp_server*"]
+include = ["api*", "mcp_server*", "agent*"]

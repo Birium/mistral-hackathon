@@ -1,7 +1,7 @@
 services:
   core:
     build: ./core
-    profiles: [core]
+    profiles: [core, all]
     ports: ["8000:8000"]
     volumes:
       - "./vault:/vault"
@@ -12,7 +12,7 @@ services:
 
   web:
     build: ./web
-    profiles: [web]
+    profiles: [web, all]
     ports: ["5173:5173"]
 
 volumes:
