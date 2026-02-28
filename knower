@@ -157,6 +157,19 @@ cmd_config() {
   esac
 }
 
+cmd_shell() {
+  echo "➜  Entering Knower Python environment..."
+  echo "   (type 'exit' to leave)"
+  
+  # Manually set the virtual environment variables
+  export VIRTUAL_ENV="$KNOWER_HOME/core/.venv"
+  export PATH="$VIRTUAL_ENV/bin:$PATH"
+  unset PYTHONHOME
+  
+  # Replace current process with a new interactive shell
+  exec "${SHELL:-/bin/bash}"
+}
+
 # ── Router ───────────────────────────────────────────────────────────────────
 case "${1:-}" in
   dev)      cmd_dev ;;
@@ -181,6 +194,7 @@ case "${1:-}" in
     echo "  vault                  Open vault in Finder"
     echo "  config vault <path>    Set vault path"
     echo "  config show            Print current config"
+    echo "  shell                  Open shell with Python venv activated"
     echo ""
     ;;
   *)
