@@ -5,7 +5,6 @@ from watchdog.events import FileSystemEventHandler
 import background
 from background import run as run_background
 
-_background_writes: set = set()
 _subscribers: list[asyncio.Queue] = []
 
 
@@ -29,7 +28,7 @@ def broadcast(message: dict) -> None:
 
 class VaultHandler(FileSystemEventHandler):
     def on_modified(self, event):
-        if event.is_directory or event.src_path in _background_writes:
+        if event.is_directory or background.is_background_write(event.src_path):
             return
         broadcast({"type": "file_changed", "path": event.src_path})
         run_background(event.src_path)

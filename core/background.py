@@ -2,7 +2,26 @@ import asyncio
 import logging
 import qmd as qmd_client
 
+from functions.frontmatter.tokens import update_tokens
+
 logger = logging.getLogger(__name__)
+
+# Paths currently being written by this background process.
+# watcher.py checks this set to avoid re-triggering on our own writes.
+_background_writes: set[str] = set()
+
+
+def mark_writing(path: str) -> None:
+    _background_writes.add(path)
+
+
+def unmark_writing(path: str) -> None:
+    _background_writes.discard(path)
+
+
+def is_background_write(path: str) -> bool:
+    return path in _background_writes
+
 
 # Set once at startup by watcher.py
 _loop: asyncio.AbstractEventLoop | None = None
@@ -20,6 +39,10 @@ def run(path: str) -> None:
     asyncio.run_coroutine_threadsafe(_handle(path), _loop)
 
 async def _handle(path: str) -> None:
-    # TODO: token count + frontmatter update
+    mark_writing(path)
+    try:
+        update_tokens(path)
+    finally:
+        unmark_writing(path)
     await qmd_client.reindex()
     logger.info(f"[background] reindex done for {path}")
