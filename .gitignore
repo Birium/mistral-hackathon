@@ -7,3 +7,5 @@ venv
 .DS_Store
 __pycache__
 vault/
+instructions/
+qmd/

@@ -24,29 +24,6 @@ Avant toute chose, plusieurs décisions ont été prises lors de la dernière se
 
 ---
 
-### `tools/search.md` (le tool, pas le fichier de compréhension)
-
-Ce fichier est recentré sur une seule chose : comment l'agent utilise le tool `search`. Beaucoup de ce qui est actuellement dans ce fichier migre vers le gros `search.md`.
-
-**Ce qui reste dans `tools/search.md` :**
-- La signature du tool : `search(query, mode, scope)`
-- Le paramètre `query` : texte de la recherche
-- Le paramètre `mode` : `"fast"` (BM25) vs `"deep"` (pipeline complet), avec une phrase sur quand utiliser l'un ou l'autre
-- Le paramètre `scope` : optionnel, format path avec wildcards. Exemples : `"projects/startup-x/"` pour un projet précis, `"projects/*/state.md"` pour tous les states, sans scope = tout le vault indexé. Plus de scopes prédéfinis comme `"project:[nom]"` ou `"all-states"` — l'agent formule directement les paths qu'il connaît.
-- Le format de retour : array de chunks avec `path`, `chunk`, `score`, `lines`. Pour chaque chunk, le tool retourne aussi N lignes de contexte au-dessus et en-dessous (valeur exacte de N à définir à l'écriture — probablement 5 à 10 lignes). Cela garantit que l'agent a toujours du contexte autour du passage trouvé, pas juste le chunk isolé.
-- Les cas d'usage typiques, les edge cases
-
-**Ce qui dégage de `tools/search.md` :**
-- Toute la description interne de QMD (chunking, BM25, pipeline complet, RRF) → migre dans `search.md`
-- La description des scopes cross-cutting `all-*` → supprimée, remplacée par la notation wildcard
-- Les paramètres `date_from` et `date_to` → migrent dans `search.md` comme feature supplémentaire
-
-**Section features supplémentaires à inclure dans `tools/search.md` :**
-- Multi-query : `search(["query1", "query2"], ...)` pour chercher plusieurs patterns en parallèle en un seul appel. Réduit les allers-retours entre l'agent et le service, utile quand l'agent sait qu'il a plusieurs angles de recherche à couvrir.
-- Filtrage par date : `date_from` et `date_to` comme paramètres optionnels. Comportement sur changelogs (filtre sur H1 de date) vs autres fichiers (filtre sur `updated` du frontmatter). Formats acceptés : date ISO et expressions relatives ("7 days ago", "30 days ago").
-
----
-
 ## Fichier à créer — `search.md` (version complète)
 
 Ce fichier remplace et étend largement le `search.md` actuel du dossier MVP. C'est le fichier de compréhension complète du composant search — il couvre tout ce qui se passe sous le capot, de QMD jusqu'au concat engine.
