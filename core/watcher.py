@@ -9,13 +9,16 @@ _background_writes: set = set()   # paths being written by background job
 # Simple SSE Pub/Sub
 _subscribers = []
 
-async def subscribe():
+def subscribe() -> asyncio.Queue:
     q = asyncio.Queue()
     _subscribers.append(q)
+    return q
+
+def unsubscribe(q: asyncio.Queue) -> None:
     try:
-        yield q
-    finally:
         _subscribers.remove(q)
+    except ValueError:
+        pass
 
 def broadcast(message: dict):
     for q in _subscribers:
@@ -42,7 +45,9 @@ class VaultHandler(FileSystemEventHandler):
         broadcast({"type": "file_deleted", "path": event.src_path})
 
 async def start_watcher():
-    vault_path = os.getenv("VAULT_PATH", "/vault")
+    vault_path = os.getenv("VAULT_PATH", "")
+    if not vault_path:
+        raise RuntimeError("VAULT_PATH env var is not set")
     observer = Observer()
     handler = VaultHandler()
     observer.schedule(handler, vault_path, recursive=True)
