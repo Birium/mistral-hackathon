@@ -1,15 +1,15 @@
 import sys
 import os
 
-# Add the parent directory (core/) to sys.path so we can import 'env' and other root modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.update_agent import UpdateAgent
 from agent.search_agent import SearchAgent
+from agent.display import Display
 
 
 def main():
-    print("🧠 Knower")
+    print("Knower")
     print("Mode: [u]pdate / [s]earch ? ", end="")
     mode = input().strip().lower()
 
@@ -20,24 +20,26 @@ def main():
         agent = SearchAgent()
         label = "Search"
 
-    print(f"\n✓ {label} agent ready.")
-    print("Ctrl+C to quit.\n")
+    print(f"\n{label} agent ready. Ctrl+C to quit.\n")
     print("-" * 50)
 
     while True:
         try:
-            user_input = input("\n→ ").strip()
+            user_input = input("\nUser: ").strip()
             if not user_input:
                 continue
-            print()
-            agent.process(user_input)
-            print("\n" + "-" * 50)
+
+            display = Display()
+            for event in agent.process(user_input):
+                display.event(event)
+
+            print("\n\n" + "-" * 50)
 
         except KeyboardInterrupt:
             print("\n\nBye.")
             sys.exit(0)
         except Exception as e:
-            print(f"\n❌ {e}")
+            print(f"\nError: {e}")
 
 
 if __name__ == "__main__":

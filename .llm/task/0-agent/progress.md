@@ -42,3 +42,38 @@
     -   **Affichage des tokens de réflexion (Thinking) :** Résolution d'un bug où l'agent semblait "silencieux" malgré la consommation de tokens. Mise à jour de la méthode `_display` dans `base_agent.py` pour intercepter les événements de type `think` (générés par le paramètre `reasoning_effort`) et les afficher en gris (`\033[90m`). Cela rend le processus de raisonnement du modèle visible et facilite grandement le débogage.
     -   **[`terminal.py`] :** Résolution de l'erreur `ModuleNotFoundError: No module named 'env'` lors de l'exécution directe du script dans le conteneur. Ajout d'une manipulation du `sys.path` (`sys.path.append(...)`) en tête de fichier pour forcer la résolution des imports absolus depuis la racine du dossier `core/`.
     -   **[`llm/config.py`] :** Changement du modèle par défaut de `google/gemini-2.5-flash` vers `google/gemini-3-flash-preview`. Le modèle 2.5 présentait des difficultés à formater correctement les appels d'outils (JSON) après avoir généré un bloc de réflexion textuelle (`<think>`) via OpenRouter, tandis que la version 3 gère parfaitement la transition vers le *tool calling*.
+
+### ✅ **Phase 3 : Refonte du Logging Terminal — Séparation Display/Agent et Formatage Propre**
+
+-   **Problème initial et objectif :**
+    -   **Constat :** Le terminal affichait un logging dégueulasse — les tool calls sur une ligne compressée avec résultat tronqué à 80 caractères, des emojis partout, et le `BaseAgent` était responsable de tout l'affichage via une méthode `_display()` interne. L'agent et la présentation étaient couplés.
+    -   **Objectif :** Extraire toute la logique d'affichage hors de l'agent, obtenir un format de log lisible orienté debug (`ToolCall ->`, `ToolResult:`, `Tokens:`), et implémenter une séparation stricte des responsabilités.
+
+-   **Refonte architecturale — Agent → Generator :**
+    -   **[`agent/base_agent.py`] :** Transformation de `run()` et `_loop()` de méthodes retournant une `str` en generators (`Generator[dict, None, None]`). La méthode `_stream_and_collect()` a été supprimée — le streaming se fait désormais directement dans `_loop()` via `yield from self.llm.stream(messages)`. La méthode `_display()` et ses helpers ont été entièrement retirés. L'agent ne printe plus rien. En cas d'atteinte du `max_iterations`, un event `{"type": "error", "id": "max_iter", ...}` est yielded plutôt qu'un print direct. Ajout d'une unique docstring de classe exhaustive remplaçant tous les commentaires inline.
+    -   **[`agent/search_agent.py`] et [`agent/update_agent.py`] :** `process()` converti en generator avec `yield from self.run(payload)`. Les type hints de retour ont été retirés (implicitement generator).
+
+-   **Fix source — Ordre des events `usage` :**
+    -   **Problème :** L'event `usage` était yielded par `client.py` au moment où il arrivait dans le stream LLM, soit *avant* les events `tool`. Il apparaissait donc dans le terminal entre le message utilisateur et le premier `ToolCall`, ce qui n'avait aucun sens sémantique.
+    -   **[`llm/client.py`] :** Introduction d'une variable locale `usage_event = None` dans `stream()`. Lors du processing des chunks, si un `UsageEvent` est détecté via `isinstance(event, UsageEvent)`, il est stocké au lieu d'être yielded immédiatement. Il est yielded en dernier, après tous les tool events, garantissant que `Tokens:` apparaît toujours à la fin du bloc correspondant. Cette décision de fixer le problème à la source (dans le client) plutôt que dans le display a été explicitement choisie pour éviter tout buffering artificiel côté affichage.
+
+-   **Création de `Display` — Logique d'affichage isolée :**
+    -   **[`agent/display.py`] (nouveau fichier) :** Classe `Display` avec une unique instance variable `agent_started: bool` remplaçant l'ancienne variable globale. Le flag est nécessaire pour le streaming : les events `answer` arrivent en dizaines de chunks (un par token), et `Agent:` ne doit être printé qu'une seule fois avant le premier chunk. Chaque requête instancie un nouveau `Display()`, ce qui reset le flag naturellement sans état global.
+    -   **Helpers privés :** `_format_tool_args(args_str)` parse le JSON des arguments et les formate en `key="value"` lisibles. `_indent_result(result)` indente chaque ligne du résultat avec 3 espaces pour l'affichage dans le code fence.
+    -   **Format final validé :**
+        ```
+        ToolCall -> tree(path=".")
+        ToolResult:
+        ```
+           [contenu indenté]
+        ```
+        Tokens: [313 in / 7 out | $0.00018]
+        ```
+
+-   **[`terminal.py`] — Épuration complète :**
+    -   Toute logique d'affichage retirée. Le fichier se réduit à 40 lignes : instanciation de l'agent choisi, boucle `input()` avec `User:` comme prompt (servant simultanément de label et de prompt de saisie, évitant tout doublon d'affichage), instanciation d'un `Display()` frais par requête, itération sur `agent.process(user_input)` et dispatch de chaque event à `display.event(event)`.
+    -   Suppression de tous les emojis (`🧠`, `✓`, `🔧`, `✗`, `❌`, `→`), du commentaire `sys.path`, et du print redondant du message utilisateur.
+
+-   **Nettoyage transversal :**
+    -   **[`llm/client.py`] :** Suppression de l'attribut `last_event_type` jamais utilisé fonctionnellement. Suppression du commentaire `lazy import to avoid circular`. Retrait de tous les commentaires inline dans `stream()`, `_process_chunk()`, et `_execute_tool()`.
+    -   **[`agent/base_agent.py`] :** `from typing import List` étendu à `List, Generator`. Suppression de `_stream_and_collect` comme couche intermédiaire devenue inutile.

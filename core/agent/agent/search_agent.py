@@ -12,10 +12,10 @@ class SearchAgent(BaseAgent):
             tools=[TreeTool, ReadTool],
         )
 
-    def process(self, query: str) -> str:
+    def process(self, query: str):
         vault_context = self._load_vault_context()
         payload = f"{vault_context}\n\n---\n\n{query}"
-        return self.run(payload)
+        yield from self.run(payload)
 
     def _load_vault_context(self) -> str:
         from tools.dummy_tools import read

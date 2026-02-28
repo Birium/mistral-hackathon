@@ -21,7 +21,7 @@ class LLMClient:
         reasoning_effort: str = "low",
         api_key: str = None,
     ):
-        from env import env  # lazy import to avoid circular
+        from env import env
         self.client = OpenAI(
             base_url=model.base_url,
             api_key=api_key or env.OPENROUTER_API_KEY,
@@ -31,7 +31,6 @@ class LLMClient:
         self.tools = tools or []
         self.reasoning_effort = reasoning_effort
 
-        # State reset on each stream() call
         self.thinking: str = ""
         self.content: str = ""
         self.tool_calls: List[ToolCall] = []
@@ -39,11 +38,8 @@ class LLMClient:
         self.is_thinking_started: bool = False
 
     def stream(self, messages: List[Message]) -> Generator[str, None, None]:
-        """
-        Stream LLM responses as JSON event strings.
-        Handles tool calls inline — executes them and appends results.
-        """
         self._reset_state()
+        usage_event = None
 
         try:
             all_messages = [SystemMessage(content=self.system_prompt)] + messages
@@ -67,11 +63,12 @@ class LLMClient:
                 if event:
                     if hasattr(event, "id"):
                         message_id = event.id
-                    yield json.dumps(event.model_dump())
+                    if isinstance(event, UsageEvent):
+                        usage_event = event
+                    else:
+                        yield json.dumps(event.model_dump())
 
-            # If tool calls were requested — execute them and yield results
             if self.tool_calls:
-                # Emit the assistant message with tool_calls
                 tool_calls_data = [
                     {
                         "id": tc.tool_id,
@@ -84,9 +81,11 @@ class LLMClient:
                     AnswerEvent(id=message_id, content="", tool_calls=tool_calls_data).model_dump()
                 )
 
-                # Execute each tool and yield events
                 for tc in self.tool_calls:
                     yield from self._execute_tool(tc)
+
+            if usage_event:
+                yield json.dumps(usage_event.model_dump())
 
         except Exception as e:
             traceback.print_exc()
@@ -95,7 +94,6 @@ class LLMClient:
             )
 
     def _execute_tool(self, tc: ToolCall) -> Generator[str, None, None]:
-        """Find the matching tool, run it, yield events."""
         tool = next((t for t in self.tools if t.name == tc.name), None)
 
         yield json.dumps(
@@ -130,10 +128,8 @@ class LLMClient:
             )
 
     def _process_chunk(self, chunk) -> Optional[BaseEvent]:
-        """Parse one streaming chunk into an event."""
         message_id = getattr(chunk, "id", "id_")
 
-        # Usage chunk
         if hasattr(chunk, "usage") and chunk.usage:
             cost = self.model.calculate_cost(
                 chunk.usage.prompt_tokens, chunk.usage.completion_tokens
@@ -153,7 +149,6 @@ class LLMClient:
 
         delta = chunk.choices[0].delta
 
-        # Thinking / reasoning
         if hasattr(delta, "reasoning") and delta.reasoning:
             thinking_chunk = delta.reasoning
             self.thinking += thinking_chunk
@@ -162,20 +157,16 @@ class LLMClient:
                 thinking_chunk = f"<think>\n{thinking_chunk}"
             return ThinkEvent(content=thinking_chunk, id=message_id)
 
-        # Close thinking block if we were thinking
         if self.is_thinking_started and not (hasattr(delta, "reasoning") and delta.reasoning):
             self.is_thinking_started = False
             return ThinkEvent(content="\n</think>\n", id=message_id)
 
-        # Text content
         if hasattr(delta, "content") and delta.content:
             self.content += delta.content
             return AnswerEvent(content=delta.content, id=message_id)
 
-        # Tool calls
         if hasattr(delta, "tool_calls") and delta.tool_calls:
             for tc_delta in delta.tool_calls:
-                # Extend tool_calls list if needed
                 while len(self.tool_calls) <= tc_delta.index:
                     self.tool_calls.append(
                         ToolCall(

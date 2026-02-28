@@ -12,12 +12,12 @@ class UpdateAgent(BaseAgent):
             tools=[TreeTool, ReadTool],
         )
 
-    def process(self, content: str, inbox_ref: str = None) -> str:
+    def process(self, content: str, inbox_ref: str = None):
         vault_context = self._load_vault_context()
         payload = f"{vault_context}\n\n---\n\n{content}"
         if inbox_ref:
             payload += f"\n\ninbox_ref: {inbox_ref}"
-        return self.run(payload)
+        yield from self.run(payload)
 
     def _load_vault_context(self) -> str:
         from tools.dummy_tools import read
