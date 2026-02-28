@@ -7,21 +7,21 @@ from functions.frontmatter.tokens import update_tokens
 
 logger = logging.getLogger(__name__)
 
-# Paths currently being written by this background process.
+# Paths currently locked by this background process.
 # watcher.py checks this set to avoid re-triggering on our own writes.
-_background_writes: set[str] = set()
+_locked_paths: set[str] = set()
 
 
-def mark_writing(path: str) -> None:
-    _background_writes.add(path)
+def lock_path(path: str) -> None:
+    _locked_paths.add(path)
 
 
-def unmark_writing(path: str) -> None:
-    _background_writes.discard(path)
+def unlock_path(path: str) -> None:
+    _locked_paths.discard(path)
 
 
-def is_background_write(path: str) -> bool:
-    return path in _background_writes
+def is_path_locked(path: str) -> bool:
+    return path in _locked_paths
 
 
 # Set once at startup by watcher.py
@@ -43,11 +43,12 @@ async def _handle(path: str) -> None:
     # if it's not a new file, update file frontmatter
     # use OS tools to avoid concurrency issues
     if os.stat(path).st_birthtime != os.path.getmtime(path):
-        mark_writing(path)
+        lock_path(path)
         try:
             update_tokens(path)
         finally:
-            unmark_writing(path)
+            unlock_path(path)
+
 
     ok = await qmd_client.reindex()
     if not ok:

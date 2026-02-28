@@ -31,7 +31,7 @@ def broadcast(message: dict) -> None:
 
 class VaultHandler(FileSystemEventHandler):
     def on_modified(self, event):
-        if event.is_directory or background.is_background_write(event.src_path):
+        if event.is_directory or background.is_path_locked(event.src_path):
             return
         broadcast({"type": "file_changed", "path": event.src_path})
         run_background(event.src_path)
