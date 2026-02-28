@@ -45,7 +45,7 @@ export function CentralZone({
   onReply,
 }: CentralZoneProps) {
   return (
-    <div className="px-8 py-6 h-full">
+    <div className="px-8 py-6 min-h-full">
       {currentView === 'home' && <HomeView />}
 
       {currentView === 'file' && selectedFilePath && fileContent !== null && (
