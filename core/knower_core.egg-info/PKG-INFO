@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: knower-core
+Version: 0.1.0
+Summary: Knower Core Services
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: mcp[cli]
+Requires-Dist: watchdog
+Requires-Dist: python-frontmatter
+Requires-Dist: pyyaml
+Requires-Dist: httpx
+Requires-Dist: sse-starlette
+Requires-Dist: openai
+Requires-Dist: pydantic-settings
+Requires-Dist: langchain<1.0.0,>=0.3.26
+Requires-Dist: langchain-community==0.3.27
+Requires-Dist: langchain-core==0.3.81
+Requires-Dist: langchain-openai==0.3.8

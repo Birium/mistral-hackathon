@@ -23,5 +23,5 @@ core/build/
 
 *.egg-info
 .env
-instructions/
 qmd/
+instructions/

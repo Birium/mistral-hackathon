@@ -6,7 +6,6 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from watcher import subscribe, unsubscribe
-from mcp_server.tools import tree as get_tree
 
 router = APIRouter()
 
@@ -37,8 +36,3 @@ async def sse(request: Request):
         finally:
             unsubscribe(q)
     return EventSourceResponse(event_stream())
-
-@router.get("/tree")
-async def tree():
-    # Return vault directory tree as string/json (using mcp tool's tree function for simplicity, or we can structure it)
-    return {"tree": get_tree("", depth=5)}
