@@ -19,5 +19,12 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
+  web:
+    build: ./web
+    profiles: [all, web]
+    ports: ["5173:5173"]
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
 volumes:
   qdrant_data:
