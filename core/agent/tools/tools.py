@@ -25,6 +25,9 @@ from typing import Optional, List
 from agent.tools.tool_base import BaseTool
 from functions.utils import _resolve_path
 from functions.tree import tree as _tree_impl
+from functions.delete import delete as _delete_impl
+from functions.search import search as _search_impl
+from functions.write import write as _write_impl
 
 
 
@@ -114,7 +117,6 @@ def search(
         mode: 'fast' for BM25 term matching, 'deep' for full semantic pipeline.
         scopes: Optional list of glob patterns to restrict the search scope.
     """
-    from functions.search import search as _search_impl
 
     try:
         results = asyncio.run(_search_impl(queries=queries, mode=mode, scopes=scopes))
@@ -148,8 +150,6 @@ def write(path: str, content: str) -> str:
         path: Vault path of the file to create or overwrite.
         content: Complete markdown content (frontmatter managed by background job).
     """
-    from core.functions.write import write as _write_impl
-
     try:
         return _write_impl(path=path, content=content)
     except ValueError as e:
@@ -218,7 +218,12 @@ def delete(path: str) -> str:
     Args:
         path: Vault path of the file or folder to delete.
     """
-    return f"[DUMMY DELETE] Deleted '{path}'"
+    try:
+        return _delete_impl(path=path)
+    except ValueError as e:
+        return f"[DELETE ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[DELETE ERROR] Could not delete '{path}': {e}"
 
 
 # ---------------------------------------------------------------------------
