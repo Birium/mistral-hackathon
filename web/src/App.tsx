@@ -5,17 +5,15 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 type SearchResponse = {
   queries: string[]
   answer: string
+}
+
+type UpdateResponse = {
+  status: string
+  result: string
 }
 
 export default function App() {
@@ -24,7 +22,8 @@ export default function App() {
 
   // Update state
   const [updateContent, setUpdateContent] = useState("")
-  const [updateStatus, setUpdateStatus] = useState("")
+  const [updateResponse, setUpdateResponse] = useState<UpdateResponse | null>(null)
+  const [updateError, setUpdateError] = useState("")
   const [isUpdating, setIsUpdating] = useState(false)
 
   // Search state
@@ -73,18 +72,24 @@ export default function App() {
   const handleUpdate = async () => {
     if (!updateContent.trim()) return
     setIsUpdating(true)
-    setUpdateStatus("Sending…")
+    setUpdateResponse(null)
+    setUpdateError("")
     try {
       const res = await fetch("/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_query: updateContent }),
       })
-      const data = await res.json()
-      setUpdateStatus(`Accepted (ID: ${data.id})`)
+      if (!res.ok) {
+        const text = await res.text()
+        setUpdateError(`${res.status}: ${text}`)
+        return
+      }
+      const data: UpdateResponse = await res.json()
+      setUpdateResponse(data)
       setUpdateContent("")
     } catch {
-      setUpdateStatus("Error — check console")
+      setUpdateError("Network error — check console")
     } finally {
       setIsUpdating(false)
     }
@@ -100,9 +105,7 @@ export default function App() {
       const res = await fetch("/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_query: searchQuery,
-        }),
+        body: JSON.stringify({ user_query: searchQuery }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -144,28 +147,60 @@ export default function App() {
       <div className="flex-1 p-6 h-full overflow-y-auto">
         <h1 className="text-2xl font-bold mb-6">Knower Shell</h1>
 
-        <Tabs defaultValue="search" className="w-full max-w-2xl">
+        <Tabs defaultValue="update" className="w-full max-w-2xl">
           <TabsList className="mb-4">
-            <TabsTrigger value="search">Search</TabsTrigger>
             <TabsTrigger value="update">Update</TabsTrigger>
+            <TabsTrigger value="search">Search</TabsTrigger>
           </TabsList>
+
+          {/* ── Update Tab ── */}
+          <TabsContent value="update" className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Content</label>
+              <Textarea
+                placeholder="Enter content to write…"
+                className="min-h-[150px]"
+                value={updateContent}
+                onChange={(e) => setUpdateContent(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleUpdate} disabled={isUpdating}>
+              {isUpdating ? "Processing…" : "Send Update"}
+            </Button>
+
+            {updateError && (
+              <p className="text-sm text-destructive">{updateError}</p>
+            )}
+
+            {updateResponse && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Status: <span className="font-mono">{updateResponse.status}</span>
+                </p>
+                {updateResponse.result ? (
+                  <pre className="text-sm bg-muted/30 border rounded-md p-4 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    {updateResponse.result}
+                  </pre>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Agent completed with no summary.</p>
+                )}
+              </div>
+            )}
+          </TabsContent>
 
           {/* ── Search Tab ── */}
           <TabsContent value="search" className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search the vault…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleKeyDown(handleSearch)}
-                  className="flex-1"
-                />
-
-                <Button onClick={handleSearch} disabled={isSearching}>
-                  {isSearching ? "Searching…" : "Search"}
-                </Button>
-              </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search the vault…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown(handleSearch)}
+                className="flex-1"
+              />
+              <Button onClick={handleSearch} disabled={isSearching}>
+                {isSearching ? "Searching…" : "Search"}
+              </Button>
             </div>
 
             {searchError && (
@@ -185,35 +220,10 @@ export default function App() {
                     {searchResponse.answer}
                   </pre>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No answer returned.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No answer returned.</p>
                 )}
               </div>
             )}
-          </TabsContent>
-
-          {/* ── Update Tab ── */}
-          <TabsContent value="update" className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">New Content</label>
-              <Textarea
-                placeholder="Enter content to write…"
-                className="min-h-[150px]"
-                value={updateContent}
-                onChange={(e) => setUpdateContent(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <Button onClick={handleUpdate} disabled={isUpdating}>
-                {isUpdating ? "Sending…" : "Send Update"}
-              </Button>
-              {updateStatus && (
-                <span className="text-sm text-muted-foreground">
-                  {updateStatus}
-                </span>
-              )}
-            </div>
           </TabsContent>
         </Tabs>
       </div>

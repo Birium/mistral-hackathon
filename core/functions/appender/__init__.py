@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from core.functions.utils import _resolve_path
+from functions.utils import _resolve_path
 from env import env
 
 VALID_POSITIONS = {"top", "bottom"}

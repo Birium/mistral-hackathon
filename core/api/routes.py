@@ -1,43 +1,26 @@
 import asyncio
 import json
-import uuid
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from watcher import subscribe, unsubscribe
+from agent.utils.logger import log_agent_event
 
 router = APIRouter()
 
 
-class UpdateAndSearchPayload(BaseModel):
+class UpdatePayload(BaseModel):
     user_query: str
 
 
-@router.post("/search")
-async def search(payload: UpdateAndSearchPayload):
-    from agent.agent.search_agent import SearchAgent
-    from agent.logger import log_agent_event
-
-    agent = SearchAgent()
-    query_str = payload.user_query
-
-    def _run() -> str:
-        parts = []
-        for event in agent.process(query_str):
-            log_agent_event(event)
-            if event.get("type") == "answer" and not event.get("tool_calls"):
-                parts.append(event.get("content", ""))
-        return "".join(parts)
-
-    answer = await asyncio.to_thread(_run)
-    return {"queries": [query_str], "answer": answer}
+class SearchPayload(BaseModel):
+    user_query: str
 
 
 @router.post("/update")
-async def update(payload: UpdateAndSearchPayload):
+async def update(payload: UpdatePayload):
     from agent.agent.update_agent import UpdateAgent
-    from agent.logger import log_agent_event
 
     agent = UpdateAgent()
 
@@ -50,7 +33,25 @@ async def update(payload: UpdateAndSearchPayload):
         return "".join(parts)
 
     result = await asyncio.to_thread(_run)
-    return {"status": "processed", "result": result}
+    return {"status": "done", "result": result}
+
+
+@router.post("/search")
+async def search(payload: SearchPayload):
+    from agent.agent.search_agent import SearchAgent
+
+    agent = SearchAgent()
+
+    def _run() -> str:
+        parts = []
+        for event in agent.process(payload.user_query):
+            log_agent_event(event)
+            if event.get("type") == "answer" and not event.get("tool_calls"):
+                parts.append(event.get("content", ""))
+        return "".join(parts)
+
+    answer = await asyncio.to_thread(_run)
+    return {"queries": [payload.user_query], "answer": answer}
 
 
 @router.get("/sse")
