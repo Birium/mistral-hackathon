@@ -1,3 +1,3 @@
-from .create_tree_in_vault import create_tree_in_vault
+from .create_tree_in_vault import get_tree
 
-__all__ = ["create_tree_in_vault"]
+__all__ = ["get_tree"]
