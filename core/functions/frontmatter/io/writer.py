@@ -1,24 +1,24 @@
 from pathlib import Path
 from typing import Union
 
-import yaml
+from .utils import _CONTENT_FIELD_MAP
 
-try:
-    from yaml import CDumper as Dumper
-except ImportError:
-    from yaml import Dumper
+def write_frontmatter(path: Union[str, Path], body: str = "") -> None:
+    """Write YAML frontmatter skeleton and optional body to a Markdown file.
 
-
-def write_frontmatter(path: Union[str, Path], data: dict, body: str = "") -> None:
-    """Write YAML frontmatter and optional body to a Markdown file.
-
+    Keys are derived from FM via _CONTENT_FIELD_MAP; values are left null.
     Overwrites the file entirely.
     """
     try:
-        block = yaml.dump(data, Dumper=Dumper, allow_unicode=True, default_flow_style=False)
-        content = f"---\n{block}---\n"
+        lines = ["---"]
+        for _, yaml_key in sorted(_CONTENT_FIELD_MAP.items()):
+            lines.append(f"{yaml_key}:")
+        lines.append("---")
+        content = "\n".join(lines) + "\n"
         if body:
             content += f"\n{body}"
         Path(path).write_text(content, encoding="utf-8")
+        from ..created.update import update_created
+        update_created(path)
     except Exception as e:
         print(f"[write_frontmatter] error writing {path}: {e}")

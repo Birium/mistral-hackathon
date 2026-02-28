@@ -1,11 +1,20 @@
 import os
 import asyncio
+from pathlib import Path
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import PatternMatchingEventHandler
 import background
 from background import run as run_background
 
 _subscribers: list[asyncio.Queue] = []
+
+IGNORE_PATTERNS = []
+IGNORE_DIRECTORIES = []
+
+def _is_ignored_directory(path: str) -> bool:
+    """Check if the event path is inside any ignored directory."""
+    parts = Path(path).parts
+    return any(ignored in parts for ignored in IGNORE_DIRECTORIES)
 
 
 def subscribe() -> asyncio.Queue:
@@ -29,20 +38,32 @@ def broadcast(message: dict) -> None:
         loop.call_soon_threadsafe(q.put_nowait, message)
 
 
-class VaultHandler(FileSystemEventHandler):
+class VaultHandler(PatternMatchingEventHandler):
+    def __init__(self) -> None:
+        super().__init__(
+            patterns=["*"],
+            ignore_patterns=IGNORE_PATTERNS,
+            ignore_directories=False,
+            case_sensitive=True,
+        )
+
+    def _should_ignore(self, event) -> bool:
+        """Extra filtering for directory-based ignores."""
+        return event.is_directory or _is_ignored_directory(event.src_path)
+
     def on_modified(self, event):
-        if event.is_directory or background.is_background_write(event.src_path):
+        if self._should_ignore(event):
             return
         broadcast({"type": "file_changed", "path": event.src_path})
         run_background(event.src_path)
 
     def on_created(self, event):
-        if event.is_directory:
+        if self._should_ignore(event):
             return
         broadcast({"type": "file_created", "path": event.src_path})
 
     def on_deleted(self, event):
-        if event.is_directory:
+        if self._should_ignore(event):
             return
         broadcast({"type": "file_deleted", "path": event.src_path})
 
