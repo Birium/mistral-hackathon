@@ -51,14 +51,14 @@ def write(path: str, content: str) -> str:
         f.write(content)
     return f"written: {path}"
 
-def search(query: str, mode: str = "fast", scope: str = "") -> str:
+async def search(query: str, mode: str = "fast", scope: str = "") -> str:
     """
     Search the vault using QMD.
     mode: "fast" (BM25) or "deep" (semantic + rerank)
     scope: "" (whole vault) or "project:<name>"
     """
     try:
-        results = asyncio.run(qmd_client.search(query, mode=mode, scope=scope))
+        results = await qmd_client.search(query, mode=mode, scope=scope)
     except Exception as e:
         return f"[search error] {e}"
 

@@ -28,22 +28,6 @@ def _run_qmd(args: list[str], timeout: int = QMD_TIMEOUT_FAST) -> str:
         logger.error("[qmd] qmd binary not found in PATH")
         return ""
 
-async def search(query: str, mode: str = "fast", scope: str = "", limit: int = 5) -> list[dict]:
-    fetch_limit = limit * 3 if scope else limit
-
-    if mode == "deep":
-        args = ["query", query, "--json", "-n", str(fetch_limit)]
-        timeout = QMD_TIMEOUT_DEEP
-    else:
-        args = ["search", query, "--json", "-n", str(fetch_limit)]
-        timeout = QMD_TIMEOUT_FAST
-
-    raw = await asyncio.to_thread(_run_qmd, args, timeout)
-    results = _parse_json_output(raw)
-    results = _apply_scope(results, scope)
-    return results[:limit]
-
-
 async def _run_qmd_async(args: list[str]) -> str:
     """Non-blocking wrapper for async context."""
     return await asyncio.to_thread(_run_qmd, args)
