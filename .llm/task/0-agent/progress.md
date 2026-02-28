@@ -172,3 +172,15 @@
     -   **`<identity>` :** Définition du rôle de "sole writer" et de la question directrice "Where does this information belong?".
     -   **`<update-strategy>` :** Directives de haut niveau sur le routing (signal fort vs ambiguïté), la gestion de l'`inbox_ref` (priorité absolue), et la création de dossiers inbox avec `review.md` en cas de doute.
     -   **`<rules>` :** Interdictions strictes : ne jamais toucher au frontmatter (géré par le background job), ne jamais régénérer `tree.md`, et ne jamais terminer sans logger dans `changelog.md`.
+
+### ✅ **Phase 10 : Diagnostic et Correction de la Troncature de Réponse (Streaming)**
+
+-   **Diagnostic & Outillage (Raw Logging) :**
+    -   **Problème identifié :** Les réponses de l'agent étaient tronquées au début (perte systématique du premier fragment de texte juste après la phase de réflexion).
+    -   **Hypothèse validée :** Le chunk de transition envoyé par l'API (contenant à la fois la fin du `reasoning` et le début du `content`) était mal géré. Le code d'origine retournait uniquement l'événement de fermeture de pensée (`</think>`), ignorant silencieusement le contenu textuel présent dans le même paquet.
+    -   **Implémentation d'un Logger Brut (`core/agent/utils/logger.py`) :** Création de la classe `ObjectLogger` pour capturer et dumper sur le disque les payloads bruts (requêtes JSON et chunks de réponse) sans altération. Cela a permis de confirmer que le texte "manquant" était bien transmis par OpenRouter.
+
+-   **Correction du Client LLM (`core/agent/llm/client.py`) :**
+    -   **Refactoring de `_process_chunk` :** Transformation de la méthode de traitement des chunks en **générateur** (`yield`) au lieu d'un retour unique (`return`). Cette modification architecturale permet désormais d'émettre plusieurs événements distincts (ex: `ThinkEvent` de fermeture ET `AnswerEvent` de contenu) à partir d'un seul chunk de données brutes.
+    -   **Mise à jour de la boucle `stream` :** Adaptation de la boucle de streaming principale pour consommer le générateur `_process_chunk`, assurant une gestion fluide et sans perte lors des transitions d'état (Reasoning → Content).
+    -   **Sécurisation du Logging :** Intégration des appels à `object_logger` dans le flux, avec une sauvegarde garantie via un bloc `finally` pour ne jamais perdre de traces en cas d'erreur.

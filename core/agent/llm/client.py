@@ -10,6 +10,7 @@ from agent.schemas.event import (
     BaseEvent, ThinkEvent, AnswerEvent, ToolEvent, UsageEvent, ErrorEvent
 )
 from agent.llm.config import ModelConfig
+from agent.utils.raw_logger import object_logger
 
 
 class LLMClient:
@@ -56,12 +57,15 @@ class LLMClient:
             if self.reasoning is not None:
                 stream_params["extra_body"] = {"reasoning": {"effort": self.reasoning}}
 
+            object_logger.log_object(stream_params)
+
             stream = self.client.chat.completions.create(**stream_params)
 
             message_id = ""
             for chunk in stream:
-                event = self._process_chunk(chunk)
-                if event:
+                object_logger.log_event(chunk.model_dump_json())
+
+                for event in self._process_chunk(chunk):
                     if hasattr(event, "id"):
                         message_id = event.id
                     if isinstance(event, UsageEvent):
@@ -93,6 +97,8 @@ class LLMClient:
             yield json.dumps(
                 ErrorEvent(id="error", content=f"LLM stream error: {e}").model_dump()
             )
+        finally:
+            object_logger.save()
 
     def _execute_tool(self, tc: ToolCall) -> Generator[str, None, None]:
         tool = next((t for t in self.tools if t.name == tc.name), None)
@@ -128,14 +134,14 @@ class LLMClient:
                           result=tc.result_str).model_dump()
             )
 
-    def _process_chunk(self, chunk) -> Optional[BaseEvent]:
+    def _process_chunk(self, chunk) -> Generator[BaseEvent, None, None]:
         message_id = getattr(chunk, "id", "id_")
 
         if hasattr(chunk, "usage") and chunk.usage:
             cost = self.model.calculate_cost(
                 chunk.usage.prompt_tokens, chunk.usage.completion_tokens
             )
-            return UsageEvent(
+            yield UsageEvent(
                 id=message_id,
                 prompt_tokens=cost.prompt_tokens,
                 completion_tokens=cost.completion_tokens,
@@ -144,31 +150,33 @@ class LLMClient:
                 total_cost=cost.total_cost,
                 usage_type="chat",
             )
+            return
 
         if not chunk.choices:
-            return None
+            return
 
         delta = chunk.choices[0].delta
 
+        # 1. Handle reasoning tokens
         if hasattr(delta, "reasoning") and delta.reasoning:
             thinking_chunk = delta.reasoning
             self.thinking += thinking_chunk
             if not self.is_thinking_started:
                 self.is_thinking_started = True
                 thinking_chunk = f"<think>\n{thinking_chunk}"
-            return ThinkEvent(content=thinking_chunk, id=message_id)
+            yield ThinkEvent(content=thinking_chunk, id=message_id)
 
-        end_think_event = None
-        if self.is_thinking_started:
+        # 2. Handle transition: if we were thinking, and now we get content, close the think block
+        if self.is_thinking_started and hasattr(delta, "content") and delta.content:
             self.is_thinking_started = False
-            end_think_event = ThinkEvent(content="\n</think>\n", id=message_id)
+            yield ThinkEvent(content="\n</think>\n", id=message_id)
 
+        # 3. Handle actual content tokens
         if hasattr(delta, "content") and delta.content:
             self.content += delta.content
-            if end_think_event:
-                return end_think_event
-            return AnswerEvent(content=delta.content, id=message_id)
+            yield AnswerEvent(content=delta.content, id=message_id)
 
+        # 4. Handle tool calls
         if hasattr(delta, "tool_calls") and delta.tool_calls:
             for tc_delta in delta.tool_calls:
                 while len(self.tool_calls) <= tc_delta.index:
@@ -186,11 +194,6 @@ class LLMClient:
                         current.name = tc_delta.function.name
                     if tc_delta.function.arguments:
                         current.arguments_str += tc_delta.function.arguments
-
-        if end_think_event:
-            return end_think_event
-
-        return None
 
     def get_tool_calls(self) -> List[ToolCall]:
         return self.tool_calls
