@@ -13,14 +13,14 @@ dependencies = [
   "pyyaml",
   "httpx",
   "sse-starlette",
-  "toon-format",
-    "openai",
-    "pydantic-settings",
-    "langchain>=0.3.26,<1.0.0",
-    "langchain-community==0.3.27",
-    "langchain-core==0.3.81",
-    "langchain-openai==0.3.8"
+  "openai",
+  "pydantic-settings",
+  "langchain>=0.3.26,<1.0.0",
+  "langchain-community==0.3.27",
+  "langchain-core==0.3.81",
+  "langchain-openai==0.3.8",
 ]
+
 
 [build-system]
 requires = ["setuptools>=72", "wheel"]
@@ -28,7 +28,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-
-[tool.uv.sources]
-toon-format = { git = "https://github.com/toon-format/toon-python.git" }
 include = ["api*", "mcp_server*", "agent*"]
