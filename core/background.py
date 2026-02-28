@@ -21,5 +21,15 @@ def run(path: str) -> None:
 
 async def _handle(path: str) -> None:
     # TODO: token count + frontmatter update
-    await qmd_client.reindex()
+    ok = await qmd_client.reindex()
+    if not ok:
+        logger.error(f"[background] reindex failed for {path}, skipping reembed")
+        return
+
     logger.info(f"[background] reindex done for {path}")
+
+    # Uncomment to run full reembed on file change (slow, but ensures embeddings are always up to date)
+    # ok = await qmd_client.reembed()
+    # if not ok:
+    #     logger.error(f"[background] reembed failed for {path}")
+    # logger.info(f"[background] reembed done for {path}")
