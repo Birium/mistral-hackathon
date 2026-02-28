@@ -6,6 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 QMD_TIMEOUT_FAST = 30   # BM25 — always instant
+QMD_TIMEOUT_SLOW = 600  # Embed
 
 def _run_qmd(args: list[str], timeout: int = QMD_TIMEOUT_FAST) -> str:
     cmd = ["qmd"] + args
@@ -85,7 +86,7 @@ async def reindex() -> bool:
 
 async def reembed() -> bool:
     """Call periodically. Slow (runs GGUF model)."""
-    raw = await _run_qmd_async(["embed"])
+    raw = await asyncio.to_thread(_run_qmd, ["embed"], QMD_TIMEOUT_SLOW)
     ok = raw is not None
     logger.info("[qmd] reembed done" if ok else "[qmd] reembed failed")
     return ok

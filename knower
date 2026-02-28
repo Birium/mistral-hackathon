@@ -52,9 +52,12 @@ cmd_dev() {
 
   echo "➜  Starting core (dev, hot-reload)..."
   source "$VENV"
-  bash "$START_SCRIPT" &        # no nohup, no redirect — stdout/stderr go to terminal
-  echo $! > "$PID_FILE"
-  echo "✅ Core started (PID $!)"
+  bash "$START_SCRIPT" &
+  CORE_PID=$!
+  echo $CORE_PID > "$PID_FILE"
+  echo "✅ Core started (PID $CORE_PID)"
+
+  trap 'kill $CORE_PID 2>/dev/null; rm -f "$PID_FILE"; echo ""; echo "✅ Core stopped."' EXIT INT TERM
 
   echo "➜  Starting web (:5173)..."
   cd "$KNOWER_HOME/web"

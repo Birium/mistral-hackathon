@@ -23,8 +23,11 @@ def unsubscribe(q: asyncio.Queue) -> None:
 
 
 def broadcast(message: dict) -> None:
+    loop = background._loop
+    if loop is None:
+        return
     for q in _subscribers:
-        q.put_nowait(message)
+        loop.call_soon_threadsafe(q.put_nowait, message)
 
 
 class VaultHandler(FileSystemEventHandler):
