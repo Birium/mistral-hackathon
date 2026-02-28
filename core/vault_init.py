@@ -1,11 +1,22 @@
 import os
 
+from functions.frontmatter.layout import FM
+
+def _fm(body: str) -> str:
+    lines = ["---", ""] * 5
+    lines[FM.delimiter_start] = "---"
+    lines[FM.created] = f"{FM.created_key}: now"
+    lines[FM.updated] = f"{FM.updated_key}: now"
+    lines[FM.tokens] = f"{FM.tokens_key}: 0"
+    lines[FM.delimiter_end] = "---"
+    return "\n".join(lines) + "\n\n" + body
+
 SEED_FILES = {
-    "overview.md": "---\ncreated: now\nupdated: now\ntokens: 0\n---\n\n# Vault Overview\n\nThis vault is empty.",
-    "tree.md": "---\ncreated: now\n---\n\n# Tree\n\n(auto-generated)",
-    "profile.md": "---\ncreated: now\n---\n\n# Profile\n\nNo profile yet.",
-    "tasks.md": "---\ncreated: now\n---\n\n# Tasks\n",
-    "changelog.md": "---\ncreated: now\n---\n\n# Changelog\n",
+    "overview.md": _fm("# Vault Overview\n\nThis vault is empty."),
+    "tree.md": _fm("# Tree\n\n(auto-generated)"),
+    "profile.md": _fm("# Profile\n\nNo profile yet."),
+    "tasks.md": _fm("# Tasks\n"),
+    "changelog.md": _fm("# Changelog\n"),
 }
 SEED_DIRS = ["inbox", "bucket", "projects"]
 
