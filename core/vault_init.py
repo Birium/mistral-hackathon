@@ -4,11 +4,11 @@ from functions.frontmatter.layout import FM
 
 def _fm(body: str) -> str:
     lines = []
-    lines[FM.delimiter_start] = "---"
-    lines[FM.created] = f"{FM.created_key}: now"
-    lines[FM.updated] = f"{FM.updated_key}: now"
-    lines[FM.tokens] = f"{FM.tokens_key}: 0"
-    lines[FM.delimiter_end] = "---"
+    lines.append("---")
+    lines.append(f"{FM.created_key}: now")
+    lines.append(f"{FM.updated_key}: now")
+    lines.append(f"{FM.tokens_key}: 0")
+    lines.append("---")
     return "\n".join(lines) + "\n\n" + body
 
 SEED_FILES = {
