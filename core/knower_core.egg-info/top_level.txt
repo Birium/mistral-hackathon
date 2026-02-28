@@ -1,3 +1,4 @@
 agent
 api
+functions
 mcp_server

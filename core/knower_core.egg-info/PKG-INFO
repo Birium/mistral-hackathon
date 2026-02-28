@@ -18,3 +18,5 @@ Requires-Dist: langchain<1.0.0,>=0.3.26
 Requires-Dist: langchain-community==0.3.27
 Requires-Dist: langchain-core==0.3.81
 Requires-Dist: langchain-openai==0.3.8
+Requires-Dist: pytest>=9.0.2
+Requires-Dist: pytest-asyncio

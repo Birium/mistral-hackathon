@@ -6,6 +6,7 @@ core/.venv/
 **/__pycache__/
 **/*.pyc
 *.egg-info/
+logs/
 
 # Runtime
 *.pid

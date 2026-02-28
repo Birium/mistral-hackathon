@@ -105,3 +105,82 @@
 
 -   **Validation de la Boucle Agentique :**
     -   **Exécution N-itérations fonctionnelle :** Test et validation d'une boucle agentique complète. Le modèle est désormais capable d'enchaîner de multiples itérations (ex: 4 passes) de manière autonome : il génère des blocs de réflexion (`<think>`), déclenche un ou plusieurs outils simultanément (ex: `tree` puis de multiples `read`), analyse les retours factices, et décide naturellement de sortir de la boucle pour formuler sa réponse textuelle finale.
+
+### ✅ **Phase 6 : Implémentation du Système d'Outils (Tools) et Résolution des Chemins du Vault**
+
+-   **Centralisation et Définition du Registre d'Outils :**
+    -   **Création du module unifié :** Remplacement de l'ancien système temporaire par un registre complet implémentant les 9 outils définis dans la spécification du MVP (`tree`, `read`, `search`, `write`, `edit`, `append`, `move`, `delete`, `concat`).
+    -   **[`tools/tools.py`] :** Création du fichier central. Les outils d'écriture, de recherche sémantique et de manipulation de fichiers (`write`, `edit`, `append`, `move`, `delete`, `search`, `concat`) ont été initialisés sous forme de *dummy functions* retournant des chaînes formatées. Cela permet de valider la logique de *tool calling* du LLM avant de brancher les véritables actions système.
+    -   **Ségrégation des accès (RBAC) :** Définition de deux listes exportées distinctes : `SEARCH_TOOLS` (lecture seule : `tree`, `read`, `search`, `concat`) et `UPDATE_TOOLS` (accès complet, sans `concat`).
+    -   **Nettoyage :** Suppression définitive de l'ancien fichier `tools/dummy_tools.py`.
+
+-   **Implémentation Réelle des Outils de Lecture et Navigation :**
+    -   **[`tools/tools.py` - `read`] :** Transformation du *dummy* en véritable implémentation lisant le système de fichiers. Ajout de la logique de budget de tokens via les paramètres `head` et `tail` (approximation à 4 caractères par token) pour tronquer intelligemment les longs fichiers. Implémentation du formatage automatique des retours : chaque ligne est préfixée par son numéro absolu (`N  | content`), et le tout est encapsulé dans un bloc de code Markdown avec le chemin du fichier en en-tête.
+    -   **[`tools/tools.py` - `tree`] :** Câblage de l'outil sur l'implémentation réelle existante (`core/functions/tree`), permettant à l'agent de scanner dynamiquement l'arborescence du vault avec le décompte des tokens et les timestamps.
+
+-   **Résolution Robuste des Chemins (Path Resolution) :**
+    -   **[`tools/tools.py` - `_resolve_path`] :** Création d'un helper critique pour normaliser les chemins générés par le LLM. Il gère les noms de fichiers simples (`overview.md`), les chemins préfixés (`vault/projects/...`), et les alias de racine (`.`, `./`, `vault/`).
+    -   **Support des environnements locaux :** Ajout de `.resolve()` sur `Path(env.VAULT_PATH)` pour convertir dynamiquement les chemins relatifs du `.env` (ex: `../vault`) en chemins absolus basés sur le contexte d'exécution (`cwd`). Cela corrige l'erreur `Path does not exist: /vault` rencontrée en local.
+    -   **Fix du scope de `tree` :** Application de `_resolve_path` à l'outil `tree`. Cela corrige un bug majeur où l'appel `tree(".")` scannait le répertoire du code source Python au lieu du vault, ce qui entraînait des crashs de décodage UTF-8 en tentant de lire les métadonnées de fichiers binaires compilés (`.pyc`).
+
+-   **Mise à jour et Simplification des Agents :**
+    -   **[`agent/search_agent.py` & `agent/update_agent.py`] :** Injection des nouvelles listes `SEARCH_TOOLS` et `UPDATE_TOOLS` dans l'initialisation des agents respectifs, garantissant que l'agent de recherche ne peut physiquement pas altérer le vault.
+    -   **Refactoring de `_load_vault_context` :** Simplification drastique de la méthode. Puisque le nouvel outil `read` retourne désormais le contenu pré-formaté avec des blocs Markdown et le nom du fichier, les ajouts manuels d'en-têtes (`## overview.md\n`) ont été retirés. Les appels aux fichiers de contexte (`overview.md`, `tree.md`, `profile.md`) sont maintenant de simples concaténations directes. Le *lazy import* de la fonction `read` a également été remonté au niveau du module.
+
+### ✅ **Phase 7 : Modularisation des Prompts Système & Finalisation du Search Agent**
+
+-   **Architecture des Prompts (DRY & Modularité) :**
+    -   **Stratégie de factorisation :** Adoption d'une approche modulaire pour la gestion des *system prompts*. Au lieu de dupliquer les descriptions de l'environnement et des outils dans chaque agent, ces blocs textuels sont extraits dans des fichiers de constantes partagées. Cela garantit une cohérence absolue entre l'`UpdateAgent` et le `SearchAgent` et facilite la maintenance future.
+    -   **[`prompts/env_prompt.py`] :** Création de ce module pour stocker les constantes contextuelles communes :
+        -   `ENVIRONMENT_PROMPT` : Description exhaustive de l'architecture du vault (rôle de chaque fichier, indexation QMD vs lecture directe).
+        -   `AGENTIC_MODEL_PROMPT` : Définition de la boucle autonome (raisonnement, appels d'outils, condition d'arrêt).
+        -   `INITIAL_CONTEXT_PROMPT` : Explication des trois fichiers chargés au démarrage (`overview`, `tree`, `profile`) et comment s'en servir pour s'orienter sans coût.
+    -   **[`prompts/tools_prompt.py`] :** Centralisation des descriptions stratégiques des outils (le *quand* et le *comment*, pas la signature technique). Implémentation des constantes pour les outils de lecture et navigation :
+        -   `SEARCH_TOOL_PROMPT` : Stratégies `fast` (BM25) vs `deep` (sémantique), usage des scopes.
+        -   `READ_TOOL_PROMPT` : Gestion des gros fichiers (`head`/`tail`) et lecture de dossiers.
+        -   `TREE_TOOL_PROMPT` : Usage pour l'exploration structurelle fine.
+        -   `CONCAT_TOOL_PROMPT` : Instructions pour l'assemblage final de la réponse (spécifique au Search, mais stocké ici pour cohérence).
+
+-   **Finalisation du Prompt Search Agent :**
+    -   **[`prompts/search_prompt.py`] :** Réécriture complète du fichier pour assembler dynamiquement le prompt final via des f-strings.
+    -   **Structure composite :** Le prompt combine désormais les constantes importées (`env_prompt`, `tools_prompt`) avec les sections spécifiques à l'agent de recherche :
+        -   `<identity>` : Définition stricte du rôle *read-only* et de l'objectif "What does the user need to know?".
+        -   `<search-strategy>` : Documentation des patterns de recherche multi-pass adaptés au type de question (temporelle, statut, historique, cross-projet, vague).
+        -   `<rules>` : Invariants absolus (jamais écrire, jamais inventer, jamais halluciner des paths).
+        -   `<output>` : Format de sortie strict en deux parties (Overview rédigée + Fichiers concaténés).
+
+### ✅ **Phase 8 : Standardisation des Prompts Système & Implémentation de l'Update Agent**
+
+-   **Refonte Qualitative du Search Prompt :**
+-   **Alignement sur les standards de qualité :** Réécriture complète de `search_prompt.py` pour abandonner le format "manuel procédural" (listes à puces, sous-catégories rigides) au profit d'une prose fluide et directive. Adoption du pattern "Bold Lead-in + Paragraphe" pour transmettre le *mindset* de l'agent plutôt qu'une simple suite d'instructions.
+-   **[`prompts/search_prompt.py`] :**
+    -   **`<identity>` :** Resserrée à l'essentiel (3 lignes), suppression des justifications défensives ("this is not a limitation").
+    -   **`<search-strategy>` :** Transformation radicale. Les 5 catégories de questions (temporelle, statut, etc.) sont tissées organiquement dans le texte. L'accent est mis sur le raisonnement initial (utiliser `overview` et `tree` avant tout outil) et l'itération (ne pas s'arrêter à une recherche infructueuse).
+    -   **`<rules>` :** Condensation des règles absolues. Suppression des explications évidentes pour un LLM ("Even if you think a file has a typo...").
+
+-   **Extension du Système de Prompts (Outils d'Écriture) :**
+-   **[`prompts/tools_prompt.py`] :** Ajout des 5 constantes manquantes pour les outils de modification, suivant le même standard de qualité (instructions stratégiques sur le *quand* et le *comment*, pas de détails techniques).
+    -   `WRITE_TOOL_PROMPT` : Distinction claire entre création/réécriture complète et modification partielle.
+    -   `EDIT_TOOL_PROMPT` : Insistance sur la précondition de lecture (`read` obligatoire avant `edit`) et l'unicité du contexte de remplacement.
+    -   `APPEND_TOOL_PROMPT` : Explication du workflow "zero-read" pour les changelogs et tasks (insertion aveugle en haut ou en bas).
+    -   `MOVE_TOOL_PROMPT` : Cas d'usage pour le routing et la correction d'erreurs.
+    -   `DELETE_TOOL_PROMPT` : Usage principal pour le nettoyage de l'inbox après résolution.
+
+-   **Implémentation du Prompt Update Agent :**
+-   **[`prompts/update_prompt.py`] :** Création du prompt système complet pour l'agent d'écriture, remplaçant le placeholder existant.
+    -   **Architecture Modulaire :** Assemblage dynamique via f-strings incluant `env_prompt`, `agentic_model`, `initial_context` et les 8 outils (lecture + écriture).
+    -   **`<identity>` :** Définition du rôle de "sole writer" et de la question directrice "Where does this information belong?".
+    -   **`<update-strategy>` :** Directives de haut niveau sur le routing (signal fort vs ambiguïté), la gestion de l'`inbox_ref` (priorité absolue), et la création de dossiers inbox avec `review.md` en cas de doute.
+    -   **`<rules>` :** Interdictions strictes : ne jamais toucher au frontmatter (géré par le background job), ne jamais régénérer `tree.md`, et ne jamais terminer sans logger dans `changelog.md`.
+
+### ✅ **Phase 10 : Diagnostic et Correction de la Troncature de Réponse (Streaming)**
+
+-   **Diagnostic & Outillage (Raw Logging) :**
+    -   **Problème identifié :** Les réponses de l'agent étaient tronquées au début (perte systématique du premier fragment de texte juste après la phase de réflexion).
+    -   **Hypothèse validée :** Le chunk de transition envoyé par l'API (contenant à la fois la fin du `reasoning` et le début du `content`) était mal géré. Le code d'origine retournait uniquement l'événement de fermeture de pensée (`</think>`), ignorant silencieusement le contenu textuel présent dans le même paquet.
+    -   **Implémentation d'un Logger Brut (`core/agent/utils/logger.py`) :** Création de la classe `ObjectLogger` pour capturer et dumper sur le disque les payloads bruts (requêtes JSON et chunks de réponse) sans altération. Cela a permis de confirmer que le texte "manquant" était bien transmis par OpenRouter.
+
+-   **Correction du Client LLM (`core/agent/llm/client.py`) :**
+    -   **Refactoring de `_process_chunk` :** Transformation de la méthode de traitement des chunks en **générateur** (`yield`) au lieu d'un retour unique (`return`). Cette modification architecturale permet désormais d'émettre plusieurs événements distincts (ex: `ThinkEvent` de fermeture ET `AnswerEvent` de contenu) à partir d'un seul chunk de données brutes.
+    -   **Mise à jour de la boucle `stream` :** Adaptation de la boucle de streaming principale pour consommer le générateur `_process_chunk`, assurant une gestion fluide et sans perte lors des transitions d'état (Reasoning → Content).
+    -   **Sécurisation du Logging :** Intégration des appels à `object_logger` dans le flux, avec une sauvegarde garantie via un bloc `finally` pour ne jamais perdre de traces en cas d'erreur.
