@@ -31,7 +31,6 @@ _require_vault() {
 }
 
 _start_core_bg() {
-  # Usage: _start_core_bg <log_file>
   source "$VENV"
   nohup bash "$START_SCRIPT" >> "$1" 2>&1 &
   echo $! > "$PID_FILE"
@@ -66,7 +65,6 @@ cmd_dev() {
 }
 
 cmd_start() {
-  # Prod mode: core in background, reads VAULT_PATH from config.
   _require_vault
 
   if is_running; then
@@ -112,7 +110,6 @@ cmd_logs() {
 }
 
 cmd_web() {
-  # Start the Vite dev server. Foreground by default, --bg for background.
   local bg=false
   [[ "${2:-}" == "--bg" ]] && bg=true
 
@@ -163,27 +160,141 @@ cmd_config() {
 cmd_shell() {
   echo "➜  Entering Knower Python environment..."
   echo "   (type 'exit' to leave)"
-  
-  # Manually set the virtual environment variables
   export VIRTUAL_ENV="$KNOWER_HOME/core/.venv"
   export PATH="$VIRTUAL_ENV/bin:$PATH"
   unset PYTHONHOME
-  
-  # Replace current process with a new interactive shell
   exec "${SHELL:-/bin/bash}"
+}
+
+cmd_uninstall() {
+  # ── Flag parsing ────────────────────────────────────────────────────────
+  local purge=false
+  local with_vault=false
+
+  for arg in "${@:2}"; do
+    case "$arg" in
+      --purge)      purge=true ;;
+      --with-vault) with_vault=true ;;
+    esac
+  done
+
+  # ── Summary ─────────────────────────────────────────────────────────────
+  echo ""
+  echo "  This will remove:"
+  echo "    • /usr/local/bin/knower (symlink)"
+  echo "    • $HOME/.config/knower/"
+  echo "    • $RUNTIME_DIR/"
+  echo "    • $KNOWER_HOME/core/.venv/"
+  if [[ "$purge" == true ]]; then
+    echo "    • ~/.cache/qmd/  (models, ~2 GB)"
+    echo "    • @tobilu/qmd    (npm global package)"
+  fi
+  if [[ "$with_vault" == true ]]; then
+    echo "    • $VAULT_PATH  ⚠️  YOUR VAULT — ALL NOTES WILL BE DELETED"
+  fi
+  echo ""
+
+  # ── Vault double-confirmation ────────────────────────────────────────────
+  if [[ "$with_vault" == true ]]; then
+    [[ -n "$VAULT_PATH" ]] || { echo "❌ VAULT_PATH is not set — nothing to delete."; exit 1; }
+    echo "  ⚠️  You asked to delete your vault at:"
+    echo "     $VAULT_PATH"
+    echo ""
+    echo "  Type the full vault path to confirm:"
+    read -r vault_confirm
+    if [[ "$vault_confirm" != "$VAULT_PATH" ]]; then
+      echo "❌ Path did not match. Aborting."
+      exit 1
+    fi
+  fi
+
+  # ── Final confirmation ───────────────────────────────────────────────────
+  read -r -p "  Proceed? [y/N] " confirm
+  [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+  echo ""
+
+  # ── Stop core if running ─────────────────────────────────────────────────
+  if is_running; then
+    echo "➜  Stopping core (PID $(cat "$PID_FILE"))..."
+    kill "$(cat "$PID_FILE")" 2>/dev/null || true
+    rm -f "$PID_FILE"
+    echo "  ✅ Core stopped."
+  fi
+
+  # ── Remove symlink ───────────────────────────────────────────────────────
+  if [[ -L /usr/local/bin/knower ]]; then
+    echo "➜  Removing symlink..."
+    sudo rm -f /usr/local/bin/knower
+    echo "  ✅ /usr/local/bin/knower removed."
+  fi
+
+  # ── Remove config ────────────────────────────────────────────────────────
+  if [[ -d "$HOME/.config/knower" ]]; then
+    echo "➜  Removing config..."
+    rm -rf "$HOME/.config/knower"
+    echo "  ✅ ~/.config/knower/ removed."
+  fi
+
+  # ── Remove runtime dir (logs, PID) ──────────────────────────────────────
+  if [[ -d "$RUNTIME_DIR" ]]; then
+    echo "➜  Removing runtime dir..."
+    rm -rf "$RUNTIME_DIR"
+    echo "  ✅ $RUNTIME_DIR removed."
+  fi
+
+  # ── Remove Python venv ───────────────────────────────────────────────────
+  if [[ -d "$KNOWER_HOME/core/.venv" ]]; then
+    echo "➜  Removing Python venv..."
+    rm -rf "$KNOWER_HOME/core/.venv"
+    echo "  ✅ core/.venv removed."
+  fi
+
+  # ── Purge: QMD models + npm package ─────────────────────────────────────
+  if [[ "$purge" == true ]]; then
+    if [[ -d "$HOME/.cache/qmd" ]]; then
+      echo "➜  Removing QMD cache (~2 GB)..."
+      rm -rf "$HOME/.cache/qmd"
+      echo "  ✅ ~/.cache/qmd/ removed."
+    fi
+
+    if command -v qmd &>/dev/null; then
+      echo "➜  Uninstalling @tobilu/qmd..."
+      npm uninstall -g @tobilu/qmd --silent
+      echo "  ✅ @tobilu/qmd uninstalled."
+    fi
+  fi
+
+  # ── Vault ────────────────────────────────────────────────────────────────
+  if [[ "$with_vault" == true && -d "$VAULT_PATH" ]]; then
+    echo "➜  Deleting vault..."
+    rm -rf "$VAULT_PATH"
+    echo "  ✅ $VAULT_PATH removed."
+  fi
+
+  # ── Done ─────────────────────────────────────────────────────────────────
+  echo ""
+  echo "✅ Knower uninstalled."
+  if [[ "$purge" == false ]]; then
+    echo "   QMD models and npm package were kept. Re-run with --purge to remove them."
+  fi
+  if [[ "$with_vault" == false && -n "$VAULT_PATH" ]]; then
+    echo "   Vault kept at $VAULT_PATH. Re-run with --with-vault to delete it."
+  fi
+  echo ""
 }
 
 # ── Router ───────────────────────────────────────────────────────────────────
 case "${1:-}" in
-  dev)      cmd_dev ;;
-  start)    cmd_start ;;
-  stop)     cmd_stop ;;
-  status)   cmd_status ;;
-  logs)     cmd_logs ;;
-  web)      cmd_web "$@" ;;
-  vault)    cmd_vault ;;
-  config)   cmd_config "$@" ;;
-  shell)    cmd_shell ;;
+  dev)        cmd_dev ;;
+  start)      cmd_start ;;
+  stop)       cmd_stop ;;
+  status)     cmd_status ;;
+  logs)       cmd_logs ;;
+  web)        cmd_web "$@" ;;
+  vault)      cmd_vault ;;
+  config)     cmd_config "$@" ;;
+  shell)      cmd_shell ;;
+  uninstall)  cmd_uninstall "$@" ;;
 
   help|"")
     echo ""
@@ -199,6 +310,9 @@ case "${1:-}" in
     echo "  config vault <path>    Set vault path"
     echo "  config show            Print current config"
     echo "  shell                  Open shell with Python venv activated"
+    echo "  uninstall              Remove Knower (keeps vault and QMD models)"
+    echo "    --purge              Also remove QMD models (~2 GB) and npm package"
+    echo "    --with-vault         Also delete the vault (requires path confirmation)"
     echo ""
     ;;
   *)
