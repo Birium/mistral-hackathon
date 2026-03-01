@@ -1,4 +1,4 @@
-import type { ViewType, ActivityResult, InboxDetail, ChatMode, TreeNode } from '@/types'
+import type { ViewType, ActivityResult, InboxDetail, ChatMode, TreeNode, AgentEvent } from '@/types'
 import { HomeView } from './HomeView'
 import { FileView } from './FileView'
 import { ActivityView } from './ActivityView'
@@ -16,6 +16,7 @@ interface CentralZoneProps {
   activityResult: ActivityResult | null
   chatMode: ChatMode
   pendingMessage: string | null
+  streamEvents: AgentEvent[]
   // inbox
   inboxItems: TreeNode[]
   inboxDetail: InboxDetail | null
@@ -37,6 +38,7 @@ export function CentralZone({
   activityResult,
   chatMode,
   pendingMessage,
+  streamEvents,
   inboxItems,
   inboxDetail,
   inboxDetailLoading,
@@ -65,6 +67,7 @@ export function CentralZone({
           result={activityResult}
           chatMode={chatMode}
           pendingMessage={pendingMessage}
+          streamEvents={streamEvents}
           onSelectFile={onSelectFile}
         />
       )}

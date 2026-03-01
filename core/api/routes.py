@@ -1,12 +1,15 @@
 import asyncio
 import json
 import os
+import queue as stdlib_queue
+import threading
 from pathlib import Path
 from typing import Optional
 
 import frontmatter
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
+from starlette.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 from watcher import subscribe, unsubscribe
 from agent.utils.logger import RequestLogger
@@ -34,26 +37,71 @@ def _node_to_dict(node) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Streaming bridge: sync agent generator → async NDJSON stream
+# ---------------------------------------------------------------------------
+
+async def _stream_agent(agent_iter, request_name: str):
+    """
+    Run a synchronous agent generator in a dedicated thread and yield
+    each event as a NDJSON line (one JSON object per line).
+
+    Uses a stdlib queue to bridge the sync thread → async generator
+    safely. A None sentinel signals the end of the stream.
+    """
+    q = stdlib_queue.Queue()
+
+    def _worker():
+        log = RequestLogger(request_name)
+        try:
+            for event in agent_iter:
+                log.log(event)
+                q.put(event)
+        except Exception as e:
+            q.put({"type": "error", "id": "stream_error", "content": str(e)})
+        finally:
+            log.save()
+            q.put(None)  # sentinel
+
+    thread = threading.Thread(target=_worker, daemon=True)
+    thread.start()
+
+    while True:
+        # await on a thread so we don't block the event loop
+        event = await asyncio.to_thread(q.get)
+        if event is None:
+            break
+        yield json.dumps(event) + "\n"
+
+    yield json.dumps({"type": "done"}) + "\n"
+
+
+def _streaming_response(agent_iter, request_name: str) -> StreamingResponse:
+    """Build a StreamingResponse with anti-buffering headers."""
+    return StreamingResponse(
+        _stream_agent(agent_iter, request_name),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
 @router.post("/update")
 async def update(payload: UpdatePayload):
     from agent.agent.update_agent import UpdateAgent
 
     agent = UpdateAgent()
-
-    def _run() -> str:
-        log = RequestLogger("update")
-        try:
-            parts = []
-            for event in agent.process(payload.user_query, inbox_ref=payload.inbox_ref):
-                log.log(event)
-                if event.get("type") == "answer" and not event.get("tool_calls"):
-                    parts.append(event.get("content", ""))
-            return "".join(parts)
-        finally:
-            log.save()
-
-    result = await asyncio.to_thread(_run)
-    return {"status": "done", "result": result}
+    return _streaming_response(
+        agent.process(payload.user_query, inbox_ref=payload.inbox_ref),
+        "update",
+    )
 
 
 @router.post("/search")
@@ -61,21 +109,10 @@ async def search(payload: SearchPayload):
     from agent.agent.search_agent import SearchAgent
 
     agent = SearchAgent()
-
-    def _run() -> str:
-        log = RequestLogger("search")
-        try:
-            parts = []
-            for event in agent.process(payload.user_query):
-                log.log(event)
-                if event.get("type") == "answer" and not event.get("tool_calls"):
-                    parts.append(event.get("content", ""))
-            return "".join(parts)
-        finally:
-            log.save()
-
-    answer = await asyncio.to_thread(_run)
-    return {"queries": [payload.user_query], "answer": answer}
+    return _streaming_response(
+        agent.process(payload.user_query),
+        "search",
+    )
 
 
 @router.get("/sse")

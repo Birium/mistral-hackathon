@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import type { ViewType, ChatMode, TreeNode, ActivityResult, InboxDetail } from './types'
-import { fetchTree, fetchFile, fetchInboxDetail, sendUpdate, sendSearch } from './api'
+import type { ViewType, ChatMode, TreeNode, ActivityResult, InboxDetail, AgentEvent, AgentAnswerEvent } from './types'
+import { fetchTree, fetchFile, fetchInboxDetail, streamSearch, streamUpdate } from './api'
 import { useSSE } from './hooks/useSSE'
 import { useTheme } from './hooks/useTheme'
 import { Sidebar } from './components/sidebar/Sidebar'
@@ -27,6 +27,7 @@ export default function App() {
   const [chatValue, setChatValue] = useState('')
   const [focusTrigger, setFocusTrigger] = useState(0)
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
+  const [streamEvents, setStreamEvents] = useState<AgentEvent[]>([])
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const inboxItems =
@@ -64,7 +65,6 @@ export default function App() {
 
   // ── Callbacks ─────────────────────────────────────────────────────────────
   const onSelectFile = useCallback(async (rawPath: string) => {
-    // rawPath may be an absolute path from the tree — derive relative vault path
     const vaultMarker = '/vault/'
     const idx = rawPath.indexOf(vaultMarker)
     const relPath = idx !== -1 ? rawPath.slice(idx + vaultMarker.length) : rawPath
@@ -128,25 +128,47 @@ export default function App() {
     setIsLoading(true)
     setError(null)
     setActivityResult(null)
+    setStreamEvents([])
     setPendingMessage(query)
+
+    const collected: AgentEvent[] = []
+
+    const onEvent = (event: AgentEvent) => {
+      if (event.type === 'done') return
+      collected.push(event)
+      setStreamEvents((prev) => [...prev, event])
+    }
 
     try {
       if (chatMode === 'search') {
-        const res = await sendSearch(query)
+        await streamSearch(query, onEvent)
+
+        const finalEvent = collected
+          .filter((e): e is AgentAnswerEvent => e.type === 'answer')
+          .find((e) => e.id === 'final')
+
         setActivityResult({
           type: 'search',
-          content: res.answer,
+          content: finalEvent?.content ?? '',
           query,
         })
       } else {
         const ref = chatMode === 'answering' ? answeringRef ?? undefined : undefined
-        const res = await sendUpdate(query, ref)
+        await streamUpdate(query, onEvent, ref)
+
+        const content = collected
+          .filter((e): e is AgentAnswerEvent => e.type === 'answer' && !e.tool_calls?.length)
+          .map((e) => e.content)
+          .join('')
+
         setActivityResult({
           type: chatMode === 'answering' ? 'answering' : 'update',
-          content: res.result,
+          content,
           query,
         })
+
         toast.success(chatMode === 'answering' ? 'Reply sent' : 'Update complete')
+
         if (chatMode === 'answering') {
           setChatMode('update')
           setAnsweringRef(null)
@@ -186,6 +208,7 @@ export default function App() {
             activityResult={activityResult}
             chatMode={chatMode}
             pendingMessage={pendingMessage}
+            streamEvents={streamEvents}
             inboxItems={inboxItems}
             inboxDetail={inboxDetail}
             inboxDetailLoading={inboxDetailLoading}
