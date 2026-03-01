@@ -58,7 +58,7 @@ export function FolderView() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto">
       {!folderNode ? (
         <p className="text-muted-foreground text-sm">Folder not found.</p>
       ) : !folderNode.children?.length ? (
