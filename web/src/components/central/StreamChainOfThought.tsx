@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Brain, AlertTriangle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Shimmer } from '@/components/ai-elements/shimmer'
@@ -19,9 +19,6 @@ import {
   type DisplayItem,
   type ThinkItem,
   type ToolItem,
-  // UsageItem is parsed and kept in the items array for future use,
-  // but is intentionally not rendered in the UI at this time.
-  // type UsageItem,
   type ErrorItem,
 } from '@/lib/parseStreamEvents'
 
@@ -42,6 +39,9 @@ const TOOL_LABELS: Record<string, string> = {
 function getToolLabel(name: string): string {
   return TOOL_LABELS[name] ?? `Calling ${name}`
 }
+
+/** Delay (ms) before auto-collapsing once the stream ends */
+const COLLAPSE_DELAY = 600
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool args — full display, no truncation
@@ -91,11 +91,6 @@ function ThinkStep({ item, isActive }: { item: ThinkItem; isActive: boolean }) {
       label="Reasoning"
       status={isActive ? 'active' : 'complete'}
     >
-      {/*
-        Render accumulated think content as markdown.
-        Override text sizes so inline `code` and headings match the xs context —
-        prevents inline code from ballooning to text-sm inside text-xs prose.
-      */}
       <div
         className={[
           'text-xs text-muted-foreground leading-relaxed',
@@ -105,7 +100,6 @@ function ThinkStep({ item, isActive }: { item: ThinkItem; isActive: boolean }) {
           '[&_p]:mb-1.5 [&_p]:leading-relaxed',
           '[&_ul]:mb-1.5 [&_ul]:pl-4 [&_li]:leading-relaxed',
           '[&_ol]:mb-1.5 [&_ol]:pl-4',
-          // Fix: force inline code to inherit the xs size of its context
           '[&_code]:text-xs [&_code]:py-0',
           '[&_pre]:text-xs [&_pre]:p-2',
         ].join(' ')}
@@ -116,18 +110,19 @@ function ThinkStep({ item, isActive }: { item: ThinkItem; isActive: boolean }) {
   )
 }
 
-function ToolStep({ item }: { item: ToolItem }) {
+function ToolStep({ item, isActive }: { item: ToolItem; isActive: boolean }) {
   const icon = getToolIcon(item.name)
   const label = getToolLabel(item.name)
   const filePaths = item.result ? extractFilePaths(item.result) : []
-  const status = item.status === 'running' ? 'active' : 'complete'
 
   return (
-    <ChainOfThoughtStep icon={icon} label={label} status={status}>
-      {/* Full tool arguments — no truncation */}
+    <ChainOfThoughtStep
+      icon={icon}
+      label={label}
+      status={isActive ? 'active' : 'complete'}
+    >
       <ToolArgsDisplay args={item.args} />
 
-      {/* Referenced files as clickable chips once the tool completes */}
       {item.status === 'done' && filePaths.length > 0 && (
         <ChainOfThoughtSearchResults className="mt-2">
           {filePaths.map((path) => (
@@ -136,7 +131,6 @@ function ToolStep({ item }: { item: ToolItem }) {
         </ChainOfThoughtSearchResults>
       )}
 
-      {/* Error output */}
       {item.status === 'error' && item.result && (
         <div className="mt-1 text-xs text-destructive font-mono break-all">
           {item.result}
@@ -145,20 +139,6 @@ function ToolStep({ item }: { item: ToolItem }) {
     </ChainOfThoughtStep>
   )
 }
-
-// Usage items are parsed and available in `items` for future use.
-// Uncomment this component and the case in ActivityStep to enable.
-//
-// function UsageStep({ item }: { item: UsageItem }) {
-//   return (
-//     <ChainOfThoughtStep
-//       icon={BarChart2}
-//       label="Token usage"
-//       description={`${item.prompt_tokens} in · ${item.completion_tokens} out · $${item.total_cost.toFixed(5)}`}
-//       status="complete"
-//     />
-//   )
-// }
 
 function ErrorStep({ item }: { item: ErrorItem }) {
   return (
@@ -184,16 +164,15 @@ function ActivityStep({
   isStreamActive: boolean
   isLastItem: boolean
 }) {
+  // The active step = last meaningful item while stream is running.
+  const isActive = isStreamActive && isLastItem
+
   switch (item.kind) {
     case 'think':
-      return (
-        <ThinkStep item={item} isActive={isStreamActive && isLastItem} />
-      )
+      return <ThinkStep item={item} isActive={isActive} />
     case 'tool':
-      return <ToolStep item={item} />
+      return <ToolStep item={item} isActive={isActive} />
     case 'usage':
-      // Parsed and retained — not displayed.
-      // Enable UsageStep above to show token stats.
       return null
     case 'error':
       return <ErrorStep item={item} />
@@ -219,19 +198,30 @@ export function StreamChainOfThought({
   headerText,
   isLoading,
 }: StreamChainOfThoughtProps) {
-  /*
-   * Icon strategy: follow the LAST item added to the stream.
-   *
-   * We intentionally avoid filtering for `status === 'running'` because
-   * React 18 automatic batching can merge tool `start` + `end` events into
-   * a single render cycle — meaning the tool is already `done` by the time
-   * we observe it. Tracking the last item is stable and always accurate.
-   */
+  // ── Controlled open/close state ──────────────────────────────────────────
+  const [isOpen, setIsOpen] = useState(true)
+  const prevLoadingRef = useRef(isLoading)
+
+  useEffect(() => {
+    const wasLoading = prevLoadingRef.current
+    prevLoadingRef.current = isLoading
+
+    // New stream started → open
+    if (isLoading && !wasLoading) {
+      setIsOpen(true)
+      return
+    }
+
+    // Stream ended → auto-collapse after a short pause
+    if (!isLoading && wasLoading) {
+      const timer = setTimeout(() => setIsOpen(false), COLLAPSE_DELAY)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoading])
+
+  // ── Header icon follows the last meaningful step ─────────────────────────
   const currentIcon = useMemo((): LucideIcon => {
-    // When the stream is done, always show Brain
     if (!isLoading) return Brain
-    // While loading, follow the last meaningful step — skip usage items
-    // (usage events are emitted after each LLM call and would pollute the icon)
     const last = [...items].reverse().find((i) => i.kind !== 'usage')
     if (!last) return Brain
     return getItemIcon(last)
@@ -240,8 +230,7 @@ export function StreamChainOfThought({
   if (items.length === 0) return null
 
   return (
-    // Starts closed — the header icon communicates current activity
-    <ChainOfThought defaultOpen={false}>
+    <ChainOfThought open={isOpen} onOpenChange={setIsOpen}>
       <ChainOfThoughtHeader icon={currentIcon}>
         {isLoading ? (
           <Shimmer as="span" duration={1.5}>
