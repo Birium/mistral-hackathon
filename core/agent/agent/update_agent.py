@@ -26,7 +26,4 @@ class UpdateAgent(BaseAgent):
             profile = read("profile.md")
             return f"{overview}\n\n{vault_tree}\n\n{profile}"
         except Exception as e:
-            import traceback
-            print(f"[ERROR] Exception while loading vault context: {e}")
-            traceback.print_exc()
             return f"[vault context unavailable: {e}]"
