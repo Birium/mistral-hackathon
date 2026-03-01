@@ -1,7 +1,7 @@
-import { useChat } from '@/contexts/ChatContext'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import type { AgentEvent } from '@/types'
+import { useChat } from '@/hooks/useChat'
 
 export function ActivityView() {
   const { isLoading, error, activityResult, chatMode, pendingMessage, streamEvents } = useChat()

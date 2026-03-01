@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router-dom'
-import { useChat } from '@/contexts/ChatContext'
 import { AIPromptInput } from '@/components/ai-components/ai-prompt-input'
 import { HomeView } from './HomeView'
 import { FileView } from './FileView'
@@ -7,6 +6,7 @@ import { ActivityView } from './ActivityView'
 import { InboxListView } from './InboxListView'
 import { InboxDetailView } from './InboxDetailView'
 import { FolderView } from './FolderView'
+import { useChat } from '@/hooks/useChat'
 
 export function CentralZone() {
   const {

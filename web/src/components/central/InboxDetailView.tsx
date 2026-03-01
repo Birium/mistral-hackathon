@@ -6,10 +6,10 @@ import { Separator } from '@/components/ui/separator'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { ErrorState } from '@/components/shared/ErrorState'
-import { useChat } from '@/contexts/ChatContext'
 import { useFileNavigation } from '@/hooks/useFileNavigation'
 import { fetchInboxDetail } from '@/api'
 import type { InboxDetail } from '@/types'
+import { useChat } from '@/hooks/useChat'
 
 export function InboxDetailView() {
   const { name } = useParams<{ name: string }>()

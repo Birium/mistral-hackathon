@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Folder, FileText } from 'lucide-react'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import type { TreeNode } from '@/types'
-import { useTree } from '@/contexts/TreeContext'
+import { useTree } from '@/hooks/useTree'
 
 function normalizePath(p: string): string {
   return p.replace(/\/+$/, '')

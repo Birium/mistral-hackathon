@@ -1,5 +1,5 @@
-import { TreeProvider } from './contexts/TreeContext'
-import { ChatProvider } from './contexts/ChatContext'
+import { TreeProvider } from './contexts/TreeProvider'
+import { ChatProvider } from './contexts/ChatProvider'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { CentralZone } from './components/central/CentralZone'
 

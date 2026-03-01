@@ -3,8 +3,8 @@ import { useLocation } from 'react-router-dom'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { LoadingState } from '@/components/shared/LoadingState'
-import { useTree } from '@/contexts/TreeContext'
 import { fetchFile } from '@/api'
+import { useTree } from '@/hooks/useTree'
 
 export function FileView() {
   const location = useLocation()
