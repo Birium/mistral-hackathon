@@ -49,3 +49,28 @@
 -   **Nettoyage et Architecture des Prompts :**
     -   **Suppression de `core/agent/prompts/context_prompt.py` :** Fichier vidé et retiré de l'architecture suite à la migration de son contenu vers `env_prompt.py`.
     -   **Mise à jour des Agents (`search_agent_prompt.py` & `update_agent_prompt.py`) :** Retrait des imports obsolètes et de l'injection de `INITIAL_CONTEXT_PROMPT`. Les agents héritent désormais de l'intégralité du contexte via le seul import de `ENVIRONMENT_PROMPT`.
+  
+### ✅ **Phase 4 : Refonte XML Globale et Élévation de la Stratégie de Navigation**
+
+-   **Élévation de la Stratégie de Navigation (Agent Loop) :**
+    -   **Centralisation de la dichotomie Search vs Read :** La philosophie expliquant quand chercher (scan) et quand lire (targeted retrieval) a été extraite des prompts individuels des outils pour être placée au cœur de la boucle agentique. Cela évite la duplication et positionne cette logique comme une compétence fondamentale de raisonnement plutôt que comme une simple notice d'utilisation d'outil.
+    -   **`core/agent/prompts/agent_loop_prompt.py` :** Ajout d'une section `<navigation>` détaillant le flux naturel (scan d'abord pour s'orienter, read ensuite pour approfondir) et d'une directive `<speed>` imposant à l'agent de privilégier les actions en lots (batch) et les décisions rapides.
+
+-   **Refonte des Prompts Systèmes (Agents) :**
+    -   **Transition vers un format XML strict :** Remplacement complet de la prose Markdown verbeuse par des structures XML denses (`<tags>`). Ce format est optimisé pour la compréhension par le LLM, réduisant le bruit tout en conservant 100% des instructions comportementales.
+    -   **`core/agent/prompts/search_agent_prompt.py` :** Restructuration de `SEARCH_SYSTEM_PROMPT`. La stratégie a été épurée des redondances avec l'agent loop pour se concentrer sur un mapping direct via `<by-question-type>` (ex: question de statut → `state.md`, historique → changelog). Les règles ont été isolées dans des balises `<rule>` individuelles.
+    -   **`core/agent/prompts/update_agent_prompt.py` :** Refonte de `UPDATE_SYSTEM_PROMPT`. La logique complexe a été segmentée en blocs clairs : `<verify-before-writing>`, `<route-by-signal>`, et `<file-routing>`. Réintégration explicite d'une instruction cruciale dans `<inbox-ref-handling>` : l'obligation d'utiliser le `review.md` comme pont entre deux sessions pour ne pas recommencer le raisonnement de zéro.
+
+-   **Refonte des Outils Principaux (Search & Read) :**
+    -   **Clarification des rôles et ajout de métriques :** Les outils se définissent désormais uniquement par *comment* les utiliser, la stratégie du *quand* ayant été déléguée à l'agent loop.
+    -   **`core/agent/tools/search_tool.py` :** Refonte majeure de `SEARCH_TOOL_PROMPT`. Ajout de timings explicites (`fast` = instantané, `deep` = ~10 secondes) pour guider les choix de vitesse de l'agent. Introduction d'une heuristique simple ("If you can name it, fast. If you can only describe it, deep.") et d'une section `<examples>` fournissant 5 scénarios end-to-end concrets illustrant quand utiliser Search vs Read.
+    -   **`core/agent/tools/read_tool.py` :** Nettoyage de `READ_TOOL_PROMPT`. Retrait de la section comparative `read-vs-search` et redéfinition simple de l'outil comme le "targeted retrieval tool".
+
+-   **Compression XML des Outils Secondaires :**
+    -   **Standardisation du format :** Application d'une passe rapide de compression sur tous les outils restants pour aligner l'ensemble de la codebase sur le nouveau standard XML, sans altérer la logique sous-jacente.
+    -   **`core/agent/tools/append_tool.py` :** Structuration en `<position>`, `<creates-files>`, et `<duplicate-dates>`.
+    -   **`core/agent/tools/write_tool.py` :** Simplification via une dichotomie claire `<when>` et `<not-when>`.
+    -   **`core/agent/tools/edit_tool.py` :** Isolation des contraintes dans `<precondition>` (obligation de lire avant d'éditer) et `<matching>`.
+    -   **`core/agent/tools/move_tool.py` :** Ajout de la balise `<verify>` pour forcer la vérification des chemins sources.
+    -   **`core/agent/tools/delete_tool.py` :** Explicitation de la séquence stricte (route → log → delete) dans `<when>` et interdiction du nettoyage spéculatif dans `<never>`.
+    -   **`core/agent/tools/concat_tool.py` :** Compression de l'explication du mécanisme système dans `<how-it-works>` et mise en liste des règles d'ordonnancement et de filtrage.
