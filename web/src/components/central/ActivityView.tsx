@@ -1,113 +1,62 @@
-import { Loader2 } from 'lucide-react'
+import { useChat } from '@/contexts/ChatContext'
+import { useFileNavigation } from '@/hooks/useFileNavigation'
+import { LoadingState } from '@/components/shared/LoadingState'
+// adjust these imports to whatever your ActivityView currently renders
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
-import { ErrorState } from '@/components/shared/ErrorState'
-import { EventStream } from '@/components/central/EventStream'
-import type { ActivityResult, AgentEvent, ChatMode } from '@/types'
+import type { AgentEvent } from '@/types'
 
-interface ActivityViewProps {
-  isLoading: boolean
-  error: string | null
-  result: ActivityResult | null
-  chatMode: ChatMode
-  streamEvents: AgentEvent[]
-  pendingMessage?: string | null
-  onSelectFile?: (path: string) => void
-  onRetry?: () => void
-}
+export function ActivityView() {
+  const { isLoading, error, activityResult, chatMode, pendingMessage, streamEvents } = useChat()
+  const navigateToFile = useFileNavigation()
 
-const LOADING_LABELS: Record<ChatMode, string> = {
-  update: 'Updating...',
-  search: 'Searching...',
-  answering: 'Processing reply...',
-}
-
-export function ActivityView({
-  isLoading,
-  error,
-  result,
-  chatMode,
-  streamEvents,
-  pendingMessage,
-  onSelectFile,
-  onRetry,
-}: ActivityViewProps) {
-  // ── Loading state ─────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="max-w-2xl space-y-4">
-        {/* User message bubble */}
+      <div className="space-y-4">
         {pendingMessage && (
-          <div className="px-4 py-3 bg-muted rounded-lg text-sm text-foreground ml-auto w-fit max-w-xl">
-            {pendingMessage}
-          </div>
+          <div className="text-sm text-muted-foreground italic">"{pendingMessage}"</div>
         )}
-
-        {streamEvents.length > 0 ? (
-          <>
-            <EventStream events={streamEvents} />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 pl-3">
-              <Loader2 className="h-3 w-3 animate-spin shrink-0" />
-              <span>{LOADING_LABELS[chatMode]}</span>
-            </div>
-          </>
-        ) : (
-
-          <div className="flex flex-col items-center justify-center gap-3 py-8 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="text-sm">{LOADING_LABELS[chatMode]}</span>
+        <LoadingState message="Agent is working…" />
+        {streamEvents.length > 0 && (
+          <div className="space-y-2 text-sm">
+            {streamEvents.map((event, i) => (
+              <StreamEventLine key={i} event={event} />
+            ))}
           </div>
         )}
       </div>
     )
   }
 
-  // ── Error state ───────────────────────────────────────────────────────────
   if (error) {
-    return <ErrorState message={error} onRetry={onRetry} />
+    return <div className="text-destructive text-sm">{error}</div>
   }
 
-  if (!result) return null
-
-  // ── Search result ─────────────────────────────────────────────────────────
-  if (result.type === 'search') {
+  if (!activityResult) {
     return (
-      <div className="max-w-2xl space-y-6">
-
-        {streamEvents.length > 0 && <EventStream events={streamEvents} />}
-
-        {result.content.trim() ? (
-          <MarkdownRenderer content={result.content} />
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            No results found for &ldquo;{result.query}&rdquo;
-          </p>
-        )}
+      <div className="text-muted-foreground text-sm">
+        Send a message to get started.
       </div>
     )
   }
 
-  // ── Update / answering result ─────────────────────────────────────────────
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-4 max-w-2xl">
+      <div className="text-xs text-muted-foreground uppercase tracking-wider">
+        {activityResult.type === 'search' ? 'Search' : chatMode === 'answering' ? 'Reply' : 'Update'} result
+      </div>
+      <MarkdownRenderer content={activityResult.content} />
+    </div>
+  )
+}
 
-      {streamEvents.length > 0 && <EventStream events={streamEvents} />}
-      {result.content && <MarkdownRenderer content={result.content} />}
-      {result.touched_files && result.touched_files.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Modified files
-          </p>
-          {result.touched_files.map((f) => (
-            <button
-              key={f}
-              onClick={() => onSelectFile?.(f)}
-              className="block text-sm text-primary hover:underline"
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      )}
+/** Render a single streaming event — adjust to match your actual event shapes */
+function StreamEventLine({ event }: { event: AgentEvent }) {
+  if (event.type === 'answer') {
+    return <div className="text-foreground">{event.content}</div>
+  }
+  return (
+    <div className="text-muted-foreground text-xs">
+      [{event.type}] {JSON.stringify(event).slice(0, 120)}
     </div>
   )
 }

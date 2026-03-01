@@ -15,13 +15,20 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/update': 'http://localhost:8000',
-      '/search': 'http://localhost:8000',
-      '/sse':    'http://localhost:8000',
-      '/tree':   'http://localhost:8000',
-      '/file':   'http://localhost:8000',
-      '/inbox':       'http://localhost:8000',
+      '/update':      'http://localhost:8000',
+      '/search':      'http://localhost:8000',
+      '/sse':         'http://localhost:8000',
+      '/tree':        'http://localhost:8000',
       '/transcribe':  'http://localhost:8000',
+      // These paths are also used as frontend routes — only proxy API calls (non-HTML requests)
+      '/file': {
+        target: 'http://localhost:8000',
+        bypass: (req) => req.headers.accept?.includes('text/html') ? '/index.html' : undefined,
+      },
+      '/inbox': {
+        target: 'http://localhost:8000',
+        bypass: (req) => req.headers.accept?.includes('text/html') ? '/index.html' : undefined,
+      },
     }
   }
 })
