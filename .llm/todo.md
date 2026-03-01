@@ -38,7 +38,7 @@
 
 ## Agent
 
-- [ ] Injecter la date du jour avant chaque appel search ou update agent
+- [x] Injecter la date du jour avant chaque appel search ou update agent
 
   Ni `SearchAgent.process()` ni `UpdateAgent.process()` dans leurs fichiers respectifs n'injectent la date courante dans le payload. Ils construisent `payload = f"{vault_context}\n\n---\n\n{content}"` sans timestamp. La date est critique pour les changelogs (l'`UpdateAgent` doit écrire des entrées `# YYYY-MM-DD` correctes) et pour contextualiser les recherches temporelles. À ajouter dans `_load_vault_context()` de chaque agent ou directement en tête de payload, en `datetime.now().strftime(...)`.
 
