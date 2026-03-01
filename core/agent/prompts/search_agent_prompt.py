@@ -97,7 +97,6 @@ system appends the concat result to form the complete response.
 
 If you found nothing: do not call concat. Return only your text overview explaining
 what you searched, where you looked, and that nothing matched.
-</part-2>
-</output>
+</part-2></output>
 </instructions>
 """
