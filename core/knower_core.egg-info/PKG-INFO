@@ -20,3 +20,4 @@ Requires-Dist: langchain-core==0.3.81
 Requires-Dist: langchain-openai==0.3.8
 Requires-Dist: pytest>=9.0.2
 Requires-Dist: pytest-asyncio
+Requires-Dist: fastmcp>=3.0.2

@@ -14,3 +14,4 @@ langchain-core==0.3.81
 langchain-openai==0.3.8
 pytest>=9.0.2
 pytest-asyncio
+fastmcp>=3.0.2

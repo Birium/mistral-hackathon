@@ -6,11 +6,11 @@ mcp = FastMCP("knower")
 mcp.tool(
     description=UPDATE_DESCRIPTION,
     annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
-    tags={"write", "vault"},
+    meta={"type": "write"}
 )(update)
 
 mcp.tool(
     description=SEARCH_DESCRIPTION,
     annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
-    tags={"read", "vault"},
+    meta={"type": "read"}
 )(search)

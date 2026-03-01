@@ -21,6 +21,7 @@ dependencies = [
   "langchain-openai==0.3.8",
   "pytest>=9.0.2",
   "pytest-asyncio",
+  "fastmcp>=3.0.2",
 ]
 
 [build-system]
