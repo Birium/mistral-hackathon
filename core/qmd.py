@@ -1,7 +1,7 @@
 import asyncio
-import subprocess
 import json
 import logging
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,12 @@ async def raw_search(query: str, mode: str = "fast", limit: int = 10) -> list[di
     """Return raw QMD result dicts. Callers own filtering and mapping."""
     if mode == "deep":
         args = ["query", query, "--json", "--line-numbers", "-n", str(limit)]
+        timeout = QMD_TIMEOUT_SLOW
     else:
         args = ["search", query, "--json", "--line-numbers", "-n", str(limit)]
+        timeout = QMD_TIMEOUT_FAST
 
-    raw = await _run_qmd_async(args)
+    raw = await _run_qmd_async(args, timeout)
     return _parse_json(raw)
 
 

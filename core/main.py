@@ -1,26 +1,27 @@
-from contextlib import asynccontextmanager
 import asyncio
 import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 import job_queue
 import qmd as qmd_client
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
 from mcp_server.server import mcp
-from watcher import start_watcher
 from vault_init import init_vault
+from watcher import start_watcher
 
 logger = logging.getLogger(__name__)
 
-EMBED_INTERVAL_SECONDS = 5 * 60
-
-
-async def _embed_loop() -> None:
-    while True:
-        await asyncio.sleep(EMBED_INTERVAL_SECONDS)
-        logger.info("[embed-loop] running scheduled reembed")
-        await qmd_client.reembed()
+# Uncomment if you want background task for embedding
+#
+# EMBED_INTERVAL_SECONDS = 5 * 60
+# async def _embed_loop() -> None:
+#     while True:
+#         await asyncio.sleep(EMBED_INTERVAL_SECONDS)
+#         logger.info("[embed-loop] running scheduled reembed")
+#         await qmd_client.reembed()
 
 
 @asynccontextmanager
@@ -29,12 +30,10 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(job_queue.worker())
     await start_watcher()
 
-    # Embed on mount (models already downloaded by start.sh first-boot path)
     logger.info("[startup] running initial reembed")
     await qmd_client.reembed()
 
-    # Embed on timer
-    asyncio.create_task(_embed_loop())
+    # asyncio.create_task(_embed_loop())
 
     yield
 
