@@ -12,16 +12,12 @@ with descriptions and statuses, current life context, pre-project intentions, in
 This is your primary routing signal. Most questions can be narrowed to one or two projects
 just by reading the overview — before making a single tool call.
 
-**`<vault-structure>`** — The vault tree at depth=1, with token counts and timestamps
+**`<vault-structure>`** — The complete vault tree with token counts and timestamps
 for every file and folder. This is not a static file — it is generated fresh each session.
 
-Two things to understand about vault-structure:
-First, it only shows one level of depth. A bucket folder appears as a single entry
-with a total token count — the individual files inside are not listed.
-If you need to see the contents of a sub-directory, use the `tree` tool.
-Second, the token counts are your budget signal. Check them before reading.
-A file at 400 tokens? Read it whole. A file at 45k tokens? Use head/tail or search
-for targeted chunks. The vault-structure is the only place where you get this
+The token counts are your budget signal. Check them before reading.
+A file at 400 tokens? Read it whole. A file at 45k tokens? Use search
+to locate specific chunks. The vault-structure is the only place where you get this
 information without making a tool call.
 
 **`<profile>`** — The contents of profile.md. The user's durable identity:

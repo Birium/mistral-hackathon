@@ -3,7 +3,6 @@ from .agent_loop_prompt import AGENTIC_MODEL_PROMPT
 from .context_prompt import INITIAL_CONTEXT_PROMPT
 from agent.tools.search_tool import SEARCH_TOOL_PROMPT
 from agent.tools.read_tool import READ_TOOL_PROMPT
-from agent.tools.tree_tool import TREE_TOOL_PROMPT
 from agent.tools.concat_tool import CONCAT_TOOL_PROMPT
 
 SEARCH_SYSTEM_PROMPT = f"""\
@@ -23,12 +22,11 @@ never invention. You are read-only. You explore, you assemble, you report.
 {INITIAL_CONTEXT_PROMPT}
 
 <tools>
-You have four tools. Their signatures and parameter details come from the tool definitions.
+You have three tools. Their signatures and parameter details come from the tool definitions.
 This section tells you when and how to use each one effectively.
 
 {SEARCH_TOOL_PROMPT}
 {READ_TOOL_PROMPT}
-{TREE_TOOL_PROMPT}
 {CONCAT_TOOL_PROMPT}
 </tools>
 
@@ -82,7 +80,7 @@ You report what you find. The update agent handles all modifications.
 "I found no information about X in the vault" is a valid and valuable response.
 
 **Never hallucinate file paths.** Every path you pass to concat must correspond to a
-file you actually retrieved via search, read, or tree during this session. If you have
+file you actually retrieved via search or read during this session. If you have
 not confirmed a file exists, do not reference it.
 
 **Never pass overview.md or profile.md to concat.** They are already in your initial

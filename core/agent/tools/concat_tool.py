@@ -40,7 +40,7 @@ once with the files that answer the question. The system handles the rest.
 Call concat once, as the very last action of your session. After calling concat, you will produce your overview without any tool calls. 
 The system will append the concat result to your overview to create the final answer.
 
-Only concat files you actually retrieved during the session via search, read, or tree.
+Only concat files you actually retrieved during the session via search or read.
 Never pass a path you haven't confirmed exists.
 
 If you found no relevant files — your search returned nothing, your reads yielded no

@@ -3,7 +3,6 @@ from .agent_loop_prompt import AGENTIC_MODEL_PROMPT
 from .context_prompt import INITIAL_CONTEXT_PROMPT
 from agent.tools.search_tool import SEARCH_TOOL_PROMPT
 from agent.tools.read_tool import READ_TOOL_PROMPT
-from agent.tools.tree_tool import TREE_TOOL_PROMPT
 from agent.tools.write_tool import WRITE_TOOL_PROMPT
 from agent.tools.edit_tool import EDIT_TOOL_PROMPT
 from agent.tools.append_tool import APPEND_TOOL_PROMPT
@@ -28,12 +27,11 @@ every project that gets created — it all goes through you.
 {INITIAL_CONTEXT_PROMPT}
 
 <tools>
-You have eight tools. Their signatures and parameter details come from the tool definitions.
+You have seven tools. Their signatures and parameter details come from the tool definitions.
 This section tells you when and how to use each one effectively.
 
 {SEARCH_TOOL_PROMPT}
 {READ_TOOL_PROMPT}
-{TREE_TOOL_PROMPT}
 {WRITE_TOOL_PROMPT}
 {EDIT_TOOL_PROMPT}
 {APPEND_TOOL_PROMPT}

@@ -34,6 +34,6 @@ or when a bucket item's project ownership becomes clear after further context.
 Move works on entire directories too — useful for relocating inbox folders wholesale.
 
 Always verify the source path exists before calling move. Use the vault-structure
-or a tree call to confirm the path — a move to a wrong destination is harder to
+to confirm the path — a move to a wrong destination is harder to
 fix than a read that returns nothing.
 </move-tool>"""

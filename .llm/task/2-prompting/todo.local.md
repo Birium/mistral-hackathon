@@ -8,21 +8,21 @@
 
 ## Read tool — remove head/tail, leverage paths and wildcards
 
-- [ ] Strip head and tail parameters from the read tool signature and implementation
+- [x] Strip head and tail parameters from the read tool signature and implementation
 
     The read tool currently has `head` and `tail` optional parameters for token-budgeted partial reads. These are being removed. The tool should accept a list of paths, support wildcards/globs in those paths, and return full file contents. The function signature in `core/agent/tools/read_tool.py` wraps `functions/read.py` — both need updating. The read prompt (READ_TOOL_PROMPT in the same file) currently has extensive guidance on when to use head vs tail, token budget tiers (under 5k, 5k-20k, etc.) — all of that goes away.
 
-- [ ] Rewrite READ_TOOL_PROMPT with wildcard patterns and concrete examples
+- [x] Rewrite READ_TOOL_PROMPT with wildcard patterns and concrete examples
 
     The new read prompt should focus heavily on the power of path patterns. Multiple paths in one call, glob wildcards to scan across projects, reading entire directories. Concrete examples are critical — show patterns like reading all state.md across projects, reading a full project directory, scanning all changelogs. The agent should understand that paths are its primary lever for efficient exploration. Token guidance should be simplified drastically: anything under 150k tokens is fine to load, only above that does it need to be careful. No micro-optimization, no tier-based rules. Load what you need, move fast.
 
-- [ ] Consider a separate "surgical read" tool for future partial-file reads
+- [x] Consider a separate "surgical read" tool for future partial-file reads
 
     The head/tail capability might come back later as a distinct tool (a targeted/surgical read for very large files). Not for now — just noting it as a future possibility so the architecture stays clean. No action needed in this pass.
 
 ## Tree tool — remove depth parameter
 
-- [ ] Remove depth parameter from tree tool signature and implementation
+- [x] Remove depth parameter from tree tool signature and implementation
 
     The tree tool in `core/agent/tools/tree_tool.py` wraps `functions/tree.py`. The depth parameter should be removed entirely. The vault structure is flat and repetitive enough that full tree output is always acceptable — even a bucket with 150 files is fine to display. The prompt (TREE_TOOL_PROMPT) currently emphasizes using depth for exploration and distinguishes between the initial vault-structure and the dynamic tree tool. Since tree.md no longer exists as a pre-loaded file, the tree tool becomes the primary way to see structure. The new prompt should make clear: just call tree, get everything, no depth needed.
 

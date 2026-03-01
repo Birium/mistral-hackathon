@@ -29,7 +29,7 @@ and live on as events in changelogs.
 
 **`inbox/`** — Folders of items awaiting user resolution. Each folder contains a `review.md`
 with a previous agent's reasoning and the original input files. This is temporary content —
-not indexed in search. If you need to look at inbox contents, use `tree` and `read` directly.
+not indexed in search. If you need to look at inbox contents, use `read` directly.
 
 **`bucket/` (global)** — Raw data storage: emails, transcriptions, articles, screenshots, notes.
 Things that entered the system as-is. Each item is a markdown file with frontmatter.
@@ -55,7 +55,7 @@ happened on this project is here, newest first.
 All changelogs (global + project), all tasks (global + project), all descriptions,
 all states, all buckets (global + project).
 
-**What is NOT indexed — and must be accessed via `read` or `tree` directly:**
+**What is NOT indexed — and must be accessed via `read` directly:**
 overview.md, profile.md, everything in inbox/.
 These files are either always in your initial context or are temporary content.
 </environment>"""
