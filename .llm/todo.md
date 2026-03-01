@@ -46,7 +46,7 @@
 
   Dans `FileTreeNode` (`web/src/components/sidebar/FileTreeNode.tsx`), les fichiers et dossiers affichent `{node.tokens > 0 && <span ...>{node.tokens}</span>}`. Ces tokens viennent de `TreeNode.tokens` dans `types.ts`, lui-même rempli par `_node_to_dict()` dans `routes.py` qui lit `node.tokens` depuis le scanner. Ce n'est pas l'info à mettre dans la sidebar. À supprimer ou remplacer par quelque chose d'utile (date, rien du tout).
 
-- [ ] Implémenter un loading state avec événements streamés depuis l'API
+- [x] Implémenter un loading state avec événements streamés depuis l'API
 
   Actuellement `/search` et `/update` dans `routes.py` sont des endpoints REST synchrones — ils attendent la fin de l'agent avant de répondre. Pour avoir du feedback en temps réel, il faudrait les convertir en SSE ou utiliser le canal SSE existant (`/sse` via `watcher.py`). Le frontend a déjà `useSSE` dans `web/src/hooks/useSSE.ts` et `EventSourceResponse` est déjà importé dans `routes.py`. L'agent émet des events typés (`think`, `tool`, `answer`, `usage`) via `BaseAgent._loop()` dans `base_agent.py` — ces events pourraient être relayés vers le frontend directement. En fallback acceptable : un loading state simple avec le message `pendingMessage` existant dans `App.tsx`, qui est déjà passé à `ActivityView` mais seulement affiché avec un spinner générique.
 

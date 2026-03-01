@@ -101,3 +101,16 @@
 -   **Validation de l'Architecture et Diagnostic :**
     -   **Audit de la plomberie :** Validation de la robustesse du pattern de bridge sync/async (via `threading.Thread` et `stdlib_queue.Queue`) côté backend, et de l'orchestration locale du state React (pattern `collected[]` pour contourner l'asynchronicité du state) côté frontend. L'architecture a été jugée saine, minimale et pérenne.
     -   **Analyse des fuites de Tool Calls :** Diagnostic d'un comportement inattendu où un bloc JSON (pattern ReAct avec `action` et `action_input` pour l'outil `concat`) apparaissait parfois à la fin de la réponse du `SearchAgent`. Il a été confirmé qu'il s'agit d'une "hallucination" de formatage du modèle LLM (qui écrit son intention d'appel d'outil dans le texte au lieu d'utiliser le mécanisme natif `tool_calls`), validant de fait que l'infrastructure de streaming et d'accumulation des événements fonctionne parfaitement et retranscrit fidèlement l'output du modèle.
+
+### ✅ **Phase 7 : Typage Strict et Correction de la Validation de l'Outil `read`**
+
+-   **Refonte de la Signature et Validation du Tool :**
+    -   **Correction du crash Pydantic :** Résolution de l'erreur de validation (Input should be a valid string) qui survenait lorsque le LLM passait un tableau de chemins à l'outil `read`. La signature de la fonction exposée au modèle a été modifiée de `paths: str` à `paths: list[str]`. Cela permet à LangChain de générer un schéma JSON correct (attendant un array) et à Pydantic de valider l'entrée nativement.
+    -   **Nettoyage du code mort :** Suppression du bloc de fallback (qui tentait de faire un `json.loads` si la chaîne commençait par `[`) devenu obsolète, car la validation stricte intervient en amont. Mise à jour de la docstring pour refléter ce changement de contrat.
+    -   **[`core/agent/tools/tools.py`] :** Modification de la signature de `read` et nettoyage de la logique interne.
+
+-   **Alignement de l'Implémentation Source et des Appels Internes :**
+    -   **Simplification de la fonction source :** Pour garantir une source de vérité unique et un typage strict de bout en bout, la fonction sous-jacente a été modifiée pour n'accepter exclusivement qu'une `list[str]`. L'union type `str | list[str]` et la logique de conversion conditionnelle (`isinstance(paths, str)`) ont été retirées.
+    -   **[`core/functions/read/__init__.py`] :** Mise à jour de la signature de `read` et suppression de la normalisation des chemins. Ajout d'une validation `if not paths:` pour rejeter les listes vides.
+    -   **Correction des appels directs :** Les appels internes à la fonction `read` (qui contournent le LLM) ont été mis à jour pour respecter le nouveau contrat strict. Les chemins simples passés en arguments ont été encapsulés dans des listes (ex: `read(["overview.md"])`).
+    -   **[`core/agent/agent/context.py`] :** Modification de `load_vault_context` pour passer des listes lors de la lecture de `overview.md` et `profile.md`.

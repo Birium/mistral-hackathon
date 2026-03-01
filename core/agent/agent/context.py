@@ -44,9 +44,9 @@ def load_vault_context() -> str:
     today = datetime.now().strftime("%Y-%m-%d")
 
     try:
-        overview_content = read("overview.md")
+        overview_content = read(["overview.md"])
         vault_tree_content = tree(depth=1)
-        profile_content = read("profile.md")
+        profile_content = read(["profile.md"])
 
         return VAULT_CONTEXT_TEMPLATE.format(
             date=today,

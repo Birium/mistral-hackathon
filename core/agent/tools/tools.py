@@ -57,32 +57,22 @@ def tree(path: str = "", depth: Optional[int] = None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def read(paths: str, head: Optional[int] = None, tail: Optional[int] = None) -> str:
+def read(paths: list[str], head: Optional[int] = None, tail: Optional[int] = None) -> str:
     """Read one or more files or folders from the vault, with line numbers.
 
     Args:
-        paths: A single vault path or a JSON array of paths. Each path may be
-               a file or a folder (folder = all direct files, non-recursive).
+        paths: List of vault paths. Each path may be a file or a folder
+               (folder = all direct files, non-recursive).
         head: Approximate token budget from the start of each file.
         tail: Approximate token budget from the end of each file.
               head and tail are mutually exclusive.
     """
-    import json
-
-    # Allow LLM to pass a JSON array as a string
-    if isinstance(paths, str) and paths.strip().startswith("["):
-        try:
-            paths = json.loads(paths)
-        except json.JSONDecodeError:
-            pass  # treat as single string path
-
     try:
         return _read_impl(paths=paths, head=head, tail=tail)
     except ValueError as e:
         return f"[READ ERROR] {e}"
     except (OSError, PermissionError) as e:
         return f"[READ ERROR] {e}"
-
 
 # ---------------------------------------------------------------------------
 # search — real (async bridge)
