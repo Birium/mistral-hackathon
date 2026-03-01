@@ -96,6 +96,6 @@
 
 ## Logging
 
-- [ ] Restreindre les logs au mode dev uniquement
+- [x] Restreindre les logs au mode dev uniquement
 
   `object_logger` dans `core/agent/utils/raw_logger.py` sauvegarde tous les appels LLM bruts dans `./logs/raw_requests/` et imprime `[DEBUG] Raw stream logs saved to ...` — ça arrive en prod. `log_agent_event()` dans `core/agent/utils/logger.py` écrit dans stdout via `logger.info/debug` et dans un fichier NDJSON `logs/agent_events_*.jsonl`. Conditionner tout ça à une variable d'environnement (`DEV=true` ou `LOG_LEVEL`), probablement dans `env.py`. Les routes `/search` et `/update` dans `routes.py` appellent `log_agent_event(event)` dans leur boucle — ce sont les points d'entrée à conditionner.

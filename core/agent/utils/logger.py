@@ -1,26 +1,27 @@
 """
-Server-side agent event logger.
+Per-request agent event logger.
 
-Two outputs:
-  1. Human-readable → uvicorn stdout (unchanged)
-  2. Structured NDJSON → AGENT_LOG_PATH (default: logs/agent_events.jsonl)
+Handles two outputs:
+  1. Human-readable → uvicorn stdout (always active)
+  2. Structured NDJSON → logs/requests/{name}_{timestamp}.jsonl (DEV mode only)
 
-Each JSON line shape:
-  { "ts": "...", "event": { ...raw event dict... } }
-
-Import and call:
-  log_agent_event(event)              — human log only
+Usage in routes/tools:
+  logger = RequestLogger("search")
+  try:
+      for event in agent.process(...):
+          logger.log(event)
+  finally:
+      logger.save()
 """
 
 import json
 import logging
-import os
+from env import env
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
-# Human-readable logger (unchanged)
+# Human-readable logger setup
 # ---------------------------------------------------------------------------
 
 logger = logging.getLogger("knower.agent")
@@ -37,84 +38,80 @@ def _fmt_args(args_str: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# JSON file logger
+# Request Logger Class
 # ---------------------------------------------------------------------------
 
-_STARTED_AT = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+class RequestLogger:
+    def __init__(self, request_name: str):
+        """
+        Initialize a new logger for a specific API request.
+        
+        Args:
+            request_name: Identifier for the request (e.g., "search", "update")
+        """
+        self.request_name = request_name
+        self.events = []
+        self.is_dev = env.DEV
+        self.start_time = datetime.now(timezone.utc)
 
-_LOG_DIR = Path(os.getenv("AGENT_LOG_DIR", "logs"))
-_LOG_PATH = _LOG_DIR / f"agent_events_{_STARTED_AT}.jsonl"
+    def log(self, event: dict) -> None:
+        """Log event to stdout (human-readable) and buffer it for the JSONL file."""
+        
+        # --- 1. Buffer for structured JSON (DEV only) ---
+        if self.is_dev:
+            record = {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                **event
+            }
+            self.events.append(record)
 
-_json_logger: logging.Logger | None = None
+        # --- 2. Human-readable stdout (Always active) ---
+        t = event.get("type")
 
+        if t == "think":
+            logger.debug("[think] %s", event.get("content", "")[:120].replace("\n", " "))
 
-def _get_json_logger() -> logging.Logger:
-    """Lazy singleton — creates file + handler once."""
-    global _json_logger
-    if _json_logger is not None:
-        return _json_logger
+        elif t == "answer" and not event.get("tool_calls"):
+            logger.info("[answer] %s", event.get("content", "")[:200].replace("\n", " "))
 
-    _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        elif t == "tool":
+            status = event.get("status")
+            name = event.get("name", "")
+            if status == "start":
+                logger.info("[tool→] %s(%s)", name, _fmt_args(event.get("arguments", "")))
+            elif status == "end":
+                result = str(event.get("result", ""))
+                logger.info("[tool←] %s → %s", name, result[:120].replace("\n", " "))
+            elif status == "error":
+                logger.warning("[tool✗] %s: %s", name, event.get("result", "").replace("\n", " "))
 
-    handler = logging.FileHandler(_LOG_PATH, encoding="utf-8")
-    handler.setFormatter(logging.Formatter("%(message)s"))  # raw line only
+        elif t == "usage":
+            logger.info(
+                "[usage] %d in / %d out | $%.5f",
+                event.get("prompt_tokens", 0),
+                event.get("completion_tokens", 0),
+                event.get("total_cost", 0),
+            )
 
-    jl = logging.getLogger("knower.agent.json")
-    jl.setLevel(logging.DEBUG)
-    jl.addHandler(handler)
-    jl.propagate = False  # don't bubble to uvicorn stdout
+        elif t == "error":
+            logger.error("[error] %s", event.get("content", ""))
 
-    _json_logger = jl
-    return _json_logger
+    def save(self) -> None:
+        """Write all buffered events to a single JSONL file if DEV mode is enabled."""
+        if not self.is_dev or not self.events:
+            return
 
+        log_dir = Path("logs/requests")
+        log_dir.mkdir(parents=True, exist_ok=True)
 
-def log_raw_event(event: dict) -> None:
-    """Write one event as a JSON line to AGENT_LOG_PATH."""
-    record = {
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "event": event,
-    }
-    _get_json_logger().debug(json.dumps(record, ensure_ascii=False))
+        timestamp = self.start_time.strftime("%m-%d-%H-%M-%S")
+        filename = f"{self.request_name}_{timestamp}.jsonl"
+        filepath = log_dir / filename
 
-
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
-
-
-def log_agent_event(event: dict) -> None:
-    """Log event to stdout (human-readable) and optionally to NDJSON file."""
-
-    # --- structured JSON ---
-    log_raw_event(event)
-
-    # --- human-readable (unchanged) ---
-    t = event.get("type")
-
-    if t == "think":
-        logger.debug("[think] %s", event.get("content", "")[:120])
-
-    elif t == "answer" and not event.get("tool_calls"):
-        logger.info("[answer] %s", event.get("content", "")[:200])
-
-    elif t == "tool":
-        status = event.get("status")
-        name = event.get("name", "")
-        if status == "start":
-            logger.info("[tool→] %s(%s)", name, _fmt_args(event.get("arguments", "")))
-        elif status == "end":
-            result = str(event.get("result", ""))
-            logger.info("[tool←] %s → %s", name, result[:120])
-        elif status == "error":
-            logger.warning("[tool✗] %s: %s", name, event.get("result", ""))
-
-    elif t == "usage":
-        logger.info(
-            "[usage] %d in / %d out | $%.5f",
-            event.get("prompt_tokens", 0),
-            event.get("completion_tokens", 0),
-            event.get("total_cost", 0),
-        )
-
-    elif t == "error":
-        logger.error("[error] %s", event.get("content", ""))
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                for record in self.events:
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            logger.debug(f"[logger] Saved request logs to {filepath}")
+        except Exception as e:
+            logger.error(f"[logger] Failed to save request logs: {e}")

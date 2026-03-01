@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from watcher import subscribe, unsubscribe
-from agent.utils.logger import log_agent_event
+from agent.utils.logger import RequestLogger
 
 router = APIRouter()
 
@@ -41,12 +41,16 @@ async def update(payload: UpdatePayload):
     agent = UpdateAgent()
 
     def _run() -> str:
-        parts = []
-        for event in agent.process(payload.user_query, inbox_ref=payload.inbox_ref):
-            log_agent_event(event)
-            if event.get("type") == "answer" and not event.get("tool_calls"):
-                parts.append(event.get("content", ""))
-        return "".join(parts)
+        log = RequestLogger("update")
+        try:
+            parts = []
+            for event in agent.process(payload.user_query, inbox_ref=payload.inbox_ref):
+                log.log(event)
+                if event.get("type") == "answer" and not event.get("tool_calls"):
+                    parts.append(event.get("content", ""))
+            return "".join(parts)
+        finally:
+            log.save()
 
     result = await asyncio.to_thread(_run)
     return {"status": "done", "result": result}
@@ -59,12 +63,16 @@ async def search(payload: SearchPayload):
     agent = SearchAgent()
 
     def _run() -> str:
-        parts = []
-        for event in agent.process(payload.user_query):
-            log_agent_event(event)
-            if event.get("type") == "answer" and not event.get("tool_calls"):
-                parts.append(event.get("content", ""))
-        return "".join(parts)
+        log = RequestLogger("search")
+        try:
+            parts = []
+            for event in agent.process(payload.user_query):
+                log.log(event)
+                if event.get("type") == "answer" and not event.get("tool_calls"):
+                    parts.append(event.get("content", ""))
+            return "".join(parts)
+        finally:
+            log.save()
 
     answer = await asyncio.to_thread(_run)
     return {"queries": [payload.user_query], "answer": answer}
@@ -102,7 +110,6 @@ async def tree():
 async def get_file(path: str):
     vault_path = Path(os.getenv("VAULT_PATH", ""))
 
-    # Validate no path traversal
     try:
         resolved = (vault_path / path).resolve()
         resolved.relative_to(vault_path.resolve())

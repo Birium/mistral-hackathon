@@ -31,3 +31,19 @@
     -   **Simplification des En-têtes de Blocs :** Modification de la logique de génération des code fences dans le tool `concat`. Suppression de l'annotation dynamique `(lines N-M)` dans le header du bloc markdown. Désormais, seul le chemin du fichier est utilisé comme identifiant de langage, ce qui garantit une compatibilité maximale avec les parseurs markdown et évite la redondance d'information (les numéros de ligne étant déjà explicites dans le contenu).
     -   **Harmonisation Visuelle :** Ajustement du formatage des numéros de ligne dans `_format_lines`. Passage de 1 à 2 espaces avant le séparateur vertical (`|`), alignant ainsi strictement le style visuel de `concat` sur celui du tool `read`. Cela assure une cohérence parfaite de la présentation des fichiers, quelle que soit la méthode d'accès utilisée par l'agent.
     -   **[`core/functions/concat/concat.py`] :** Mise à jour des fonctions `_format_lines` et `concat` pour implémenter ces changements de formatage.
+
+### ✅ **Phase 4 : Refonte et Unification du Système de Logs par Requête**
+
+-   **Architecture du Logging :**
+    -   **Log par requête (Per-Request Logging) :** Abandon de l'approche hybride (un log global pour le serveur + un log par appel LLM) au profit d'un système unifié où chaque requête API (ex: `/search` ou `/update`) génère un et un seul fichier de log. Ce fichier regroupe chronologiquement tous les événements streamés par l'agent (`think`, `tool`, `answer`, `usage`, `error`).
+    -   **Isolation des contextes :** En passant d'une fonction globale à une classe instanciée localement, on garantit que les requêtes concurrentes sur le serveur FastAPI ne mélangent plus leurs événements dans le même fichier.
+    -   **Gate de Développement (`DEV`) :** L'écriture des fichiers JSONL sur le disque est désormais strictement conditionnée à l'activation du mode développement. L'affichage humain dans le terminal (stdout) reste quant à lui toujours actif pour le monitoring en production.
+
+-   **Implémentation du RequestLogger :**
+    -   **[`core/agent/utils/logger.py`] :** Réécriture complète du module. Création de la classe `RequestLogger` qui gère un buffer en mémoire (`self.events`). La méthode `log()` affiche dans le terminal et ajoute l'événement au buffer. La méthode `save()` écrit le buffer dans `logs/requests/{name}_{timestamp}.jsonl` uniquement si `env.DEV` est vrai. Le chemin du dossier de logs a été hardcodé pour simplifier le code et retirer la dépendance à `os.getenv`.
+    -   **[`core/agent/utils/raw_logger.py`] :** Fichier supprimé. La journalisation des chunks bruts de l'API LLM (qui générait un dossier par appel LLM et spammait le disque) a été retirée, les événements structurés de l'agent étant amplement suffisants pour le débogage.
+
+-   **Nettoyage et Intégration aux Points d'Entrée :**
+    -   **[`core/agent/llm/client.py`] :** Purge de toutes les références à `object_logger`. Le client LLM retrouve un rôle pur : il génère et `yield` des événements structurés sans aucune responsabilité d'écriture sur le disque.
+    -   **[`core/api/routes.py`] & [`core/mcp_server/tools.py`] :** Intégration du nouveau logger dans les routes `/search`, `/update` et les outils MCP. Mise en place d'un pattern robuste : instanciation de `log = RequestLogger("nom")` au début de la fonction `_run()`, appel de `log.log(event)` dans la boucle de l'agent, et garantie de l'écriture via un bloc `finally: log.save()`. Nettoyage d'un import `uuid` mort dans les tools MCP.
+    -   **[`core/env.py`] & [`.env.example`] :** Ajout de la variable `DEV: bool = False` dans le schéma Pydantic `EnvVariables` pour centraliser la configuration, avec mise à jour du fichier d'exemple.
