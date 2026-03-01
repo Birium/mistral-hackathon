@@ -36,14 +36,6 @@ Subsequent boots skip step 3 entirely — models are already cached.
 
 ---
 
-## Configure
-
-```bash
-knower config show                # print current config
-```
-
----
-
 ## Run
 
 ### Production mode
