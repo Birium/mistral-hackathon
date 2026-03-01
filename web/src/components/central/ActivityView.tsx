@@ -1,13 +1,10 @@
 import { useChat } from '@/contexts/ChatContext'
-import { useFileNavigation } from '@/hooks/useFileNavigation'
 import { LoadingState } from '@/components/shared/LoadingState'
-// adjust these imports to whatever your ActivityView currently renders
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import type { AgentEvent } from '@/types'
 
 export function ActivityView() {
   const { isLoading, error, activityResult, chatMode, pendingMessage, streamEvents } = useChat()
-  const navigateToFile = useFileNavigation()
 
   if (isLoading) {
     return (
