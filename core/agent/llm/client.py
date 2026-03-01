@@ -10,7 +10,6 @@ from agent.schemas.event import (
     BaseEvent, ThinkEvent, AnswerEvent, ToolEvent, UsageEvent, ErrorEvent
 )
 from agent.llm.config import ModelConfig
-from agent.utils.raw_logger import object_logger
 
 
 class LLMClient:
@@ -57,14 +56,10 @@ class LLMClient:
             if self.reasoning is not None:
                 stream_params["extra_body"] = {"reasoning": {"effort": self.reasoning}}
 
-            object_logger.log_object(stream_params)
-
             stream = self.client.chat.completions.create(**stream_params)
 
             message_id = ""
             for chunk in stream:
-                object_logger.log_event(chunk.model_dump_json())
-
                 for event in self._process_chunk(chunk):
                     if hasattr(event, "id"):
                         message_id = event.id
@@ -97,8 +92,6 @@ class LLMClient:
             yield json.dumps(
                 ErrorEvent(id="error", content=f"LLM stream error: {e}").model_dump()
             )
-        finally:
-            object_logger.save()
 
     def _execute_tool(self, tc: ToolCall) -> Generator[str, None, None]:
         tool = next((t for t in self.tools if t.name == tc.name), None)

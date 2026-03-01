@@ -6,9 +6,31 @@
 
   C'est le problème bloquant du projet. Le `search` tool dans `core/agent/tools/tools.py` appelle `asyncio.run(_search_impl(...))`, qui fan-out vers `qmd_client.raw_search()` via `core/functions/search/query.py`. En mode `deep`, les modèles locaux crashent systématiquement — les logs montrent `[qmd] timeout after 30s` sur chaque query, ce qui retourne `merged number = 0` et donc `No results found`. L'agent répond quand même mais sans aucune donnée réelle. À investiguer du côté du client `qmd` et de la configuration des modèles locaux. La fonction `run()` dans `query.py` est l'entrée centrale, et `_search_impl` dans `tools.py` est ce que le LLM appelle via tool call.
 
-- [ ] Faire retourner la liste des fichiers concaténés dans la réponse finale de l'agent
+- [x] Faire retourner la liste des fichiers concaténés dans la réponse finale de l'agent
 
   Actuellement, le `SearchAgent` dans `core/agent/agent/search_agent.py` yield tous les events via `base_agent.py`, mais la route `/search` dans `core/api/routes.py` ne collecte que les fragments `answer` pour construire la réponse finale : elle fait `parts.append(event.get("content", ""))` et retourne `{"queries": ..., "answer": answer}`. Le `concat` tool est bien appelé et retourne du contenu (visible dans les logs `[tool←] concat → ...`), mais ce résultat ne remonte jamais dans le JSON de réponse. Il faut collecter les events `tool` de type `end` dont le `name == "concat"` et extraire les paths depuis les arguments, puis les ajouter dans la réponse sous une clé `files` ou similaire. Le schéma de réponse actuel est dans `routes.py`, et `ActivityResult` côté frontend dans `web/src/types.ts` a déjà un champ `touched_files?: string[]` qui attend exactement ça — il suffit de le brancher.
+
+- [x] Nettoyer le formatage du tool concat
+
+  Le format de sortie actuel du tool `concat` n'est pas optimal pour le rendu final. Il génère souvent un bloc global `multi-file-concat` avec des headers internes (H1) pour chaque fichier. Nous voulons une structure beaucoup plus simple et standard : une suite de blocs de code Markdown individuels, où le "langage" du bloc est le chemin du fichier.
+  
+  Format actuel (à bannir) :
+  ```multi-file-concat
+  # vault/path/to/file.md
+  1 | content...
+  ```
+  ```
+
+  Format attendu :
+  ```vault/path/to/file.md
+  1 | content...
+  ```
+  ```
+  Cela nécessite de modifier `core/functions/concat/concat.py` (ou le wrapper qui boucle sur les fichiers) pour supprimer le wrapper global et les headers H1, et retourner simplement les blocs concaténés par des sauts de ligne.
+
+- [x] Corriger l'erreur de validation Pydantic sur le tool `read`
+
+  L'agent envoie parfois une liste de chaînes (`['path1', 'path2']`) au lieu d'une chaîne unique pour l'argument `paths`, ce qui provoque une erreur de validation Pydantic (`Input should be a valid string`). Il faut mettre à jour la signature de `read` dans `tools.py` pour accepter `Union[str, List[str]]` afin que Pydantic valide correctement l'entrée avant qu'elle n'arrive à la logique du tool.
 
 - [ ] Empêcher le modèle de sortir du contenu brut de fichiers dans sa réponse
 
@@ -24,7 +46,7 @@
 
   Dans `FileTreeNode` (`web/src/components/sidebar/FileTreeNode.tsx`), les fichiers et dossiers affichent `{node.tokens > 0 && <span ...>{node.tokens}</span>}`. Ces tokens viennent de `TreeNode.tokens` dans `types.ts`, lui-même rempli par `_node_to_dict()` dans `routes.py` qui lit `node.tokens` depuis le scanner. Ce n'est pas l'info à mettre dans la sidebar. À supprimer ou remplacer par quelque chose d'utile (date, rien du tout).
 
-- [ ] Implémenter un loading state avec événements streamés depuis l'API
+- [x] Implémenter un loading state avec événements streamés depuis l'API
 
   Actuellement `/search` et `/update` dans `routes.py` sont des endpoints REST synchrones — ils attendent la fin de l'agent avant de répondre. Pour avoir du feedback en temps réel, il faudrait les convertir en SSE ou utiliser le canal SSE existant (`/sse` via `watcher.py`). Le frontend a déjà `useSSE` dans `web/src/hooks/useSSE.ts` et `EventSourceResponse` est déjà importé dans `routes.py`. L'agent émet des events typés (`think`, `tool`, `answer`, `usage`) via `BaseAgent._loop()` dans `base_agent.py` — ces events pourraient être relayés vers le frontend directement. En fallback acceptable : un loading state simple avec le message `pendingMessage` existant dans `App.tsx`, qui est déjà passé à `ActivityView` mais seulement affiché avec un spinner générique.
 
@@ -38,7 +60,7 @@
 
 ## Agent
 
-- [ ] Injecter la date du jour avant chaque appel search ou update agent
+- [x] Injecter la date du jour avant chaque appel search ou update agent
 
   Ni `SearchAgent.process()` ni `UpdateAgent.process()` dans leurs fichiers respectifs n'injectent la date courante dans le payload. Ils construisent `payload = f"{vault_context}\n\n---\n\n{content}"` sans timestamp. La date est critique pour les changelogs (l'`UpdateAgent` doit écrire des entrées `# YYYY-MM-DD` correctes) et pour contextualiser les recherches temporelles. À ajouter dans `_load_vault_context()` de chaque agent ou directement en tête de payload, en `datetime.now().strftime(...)`.
 
@@ -74,6 +96,6 @@
 
 ## Logging
 
-- [ ] Restreindre les logs au mode dev uniquement
+- [x] Restreindre les logs au mode dev uniquement
 
   `object_logger` dans `core/agent/utils/raw_logger.py` sauvegarde tous les appels LLM bruts dans `./logs/raw_requests/` et imprime `[DEBUG] Raw stream logs saved to ...` — ça arrive en prod. `log_agent_event()` dans `core/agent/utils/logger.py` écrit dans stdout via `logger.info/debug` et dans un fichier NDJSON `logs/agent_events_*.jsonl`. Conditionner tout ça à une variable d'environnement (`DEV=true` ou `LOG_LEVEL`), probablement dans `env.py`. Les routes `/search` et `/update` dans `routes.py` appellent `log_agent_event(event)` dans leur boucle — ce sont les points d'entrée à conditionner.

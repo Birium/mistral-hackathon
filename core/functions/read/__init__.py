@@ -9,12 +9,12 @@ from .images import is_image, load_image
 
 
 def read(
-    paths: str | list[str],
+    paths: list[str],
     head: int | None = None,
     tail: int | None = None,
 ) -> str:
     # --- Validate ---
-    if isinstance(paths, list) and len(paths) == 0:
+    if not paths:
         raise ValueError("paths must not be empty")
     if head is not None and tail is not None:
         raise ValueError("head and tail are mutually exclusive")
@@ -24,11 +24,9 @@ def read(
         raise ValueError("tail must be > 0")
 
     vault_root = Path(env.VAULT_PATH).resolve()
-    path_list: list[str] = [paths] if isinstance(paths, str) else paths
-
     blocks: list[str] = []
 
-    for raw_path in path_list:
+    for raw_path in paths:
         resolved = _resolve_path(raw_path)
 
         # Security: must stay inside vault
