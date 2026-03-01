@@ -180,3 +180,4 @@ echo ""
 echo "   knower dev           # start knower in dev mode"
 echo "   knower start         # start in prod mode"
 echo ""
+

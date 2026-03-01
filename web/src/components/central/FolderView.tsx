@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Folder, FileText } from 'lucide-react'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import type { TreeNode } from '@/types'
 import { useTree } from '@/hooks/useTree'
 
@@ -46,7 +45,6 @@ export function FolderView() {
   const { tree } = useTree()
 
   const folderPath = location.pathname.replace(/^\/folder\//, '')
-  const segments = folderPath.split('/').filter(Boolean)
 
   const folderNode = tree.length > 0 ? findNode(tree, folderPath) : null
 
@@ -60,9 +58,7 @@ export function FolderView() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <Breadcrumb segments={segments} className="mb-6" />
-
+    <div className="h-full w-full overflow-y-auto">
       {!folderNode ? (
         <p className="text-muted-foreground text-sm">Folder not found.</p>
       ) : !folderNode.children?.length ? (

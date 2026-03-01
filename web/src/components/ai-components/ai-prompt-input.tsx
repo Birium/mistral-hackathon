@@ -1,6 +1,7 @@
 import {
   PromptInput,
   PromptInputBody,
+  PromptInputButton,
   PromptInputFooter,
   PromptInputTextarea,
   PromptInputTools,
@@ -9,6 +10,7 @@ import {
 import type { ChatMode } from '@/types'
 import { ModeToggle } from '@/components/chat/ModeToggle'
 import { AnsweringBanner } from '@/components/chat/AnsweringBanner'
+import { Send } from 'lucide-react'
 
 interface ChatInputProps {
   value: string
@@ -38,8 +40,8 @@ export function AIPromptInput({
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 px-4 pb-4 pt-12 bg-background">
-      <div className="w-full max-w-2xl pointer-events-auto flex flex-col gap-2">
+    <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-center items-center gap-2 px-4 pb-4 pt-12">
+      <div className="w-full max-w-2xl pointer-events-auto flex flex-col gap-2 bg-background">
         {chatMode === 'answering' && answeringRef && (
           <AnsweringBanner answeringRef={answeringRef} onCancel={onCancelReply} />
         )}
@@ -60,6 +62,13 @@ export function AIPromptInput({
                 disabled={chatMode === 'answering'}
               />
             </PromptInputTools>
+            <PromptInputButton
+              variant="ghost"
+              onClick={onSend}
+              disabled={disabled}
+            >
+              <Send size={16} />
+            </PromptInputButton>
           </PromptInputFooter>
         </PromptInput>
       </div>
