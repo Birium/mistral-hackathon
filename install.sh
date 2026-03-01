@@ -113,3 +113,4 @@ echo ""
 echo "   knower config vault ~/my-vault   # set your vault path"
 echo "   knower start                     # start knower"
 echo ""
+
