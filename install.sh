@@ -153,7 +153,7 @@ if [[ -n "$EXISTING_KEY" ]]; then
   ok "ELEVENLABS_API_KEY already set (sk-…${EXISTING_KEY: -4})"
 else
   while true; do
-    read -r -s -p "  ➜  OpenAI API key (input hidden): " KEY_INPUT
+    read -r -s -p "  ➜  ELEVENLABS_API_KEY key (input hidden): " KEY_INPUT
     echo ""
     if [[ "$KEY_INPUT" == sk-* ]]; then
       _config_set ELEVENLABS_API_KEY "$KEY_INPUT"

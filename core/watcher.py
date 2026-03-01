@@ -1,15 +1,19 @@
-import os
 import asyncio
+import os
 from pathlib import Path
-from watchdog.observers import Observer
+
 from watchdog.events import PatternMatchingEventHandler
+from watchdog.observers import Observer
+
 import background
 from background import run as run_background
+from env import env
 
 _subscribers: list[asyncio.Queue] = []
 
 IGNORE_PATTERNS = []
 IGNORE_DIRECTORIES = []
+
 
 def _is_ignored_directory(path: str) -> bool:
     """Check if the event path is inside any ignored directory."""
@@ -69,9 +73,7 @@ class VaultHandler(PatternMatchingEventHandler):
 
 
 async def start_watcher() -> None:
-    vault_path = os.getenv("VAULT_PATH", "")
-    if not vault_path:
-        raise RuntimeError("VAULT_PATH env var is not set")
+    vault_path = env.VAULT_PATH
 
     # Hand the running loop to background so it can submit coroutines safely
     background.set_loop(asyncio.get_running_loop())
