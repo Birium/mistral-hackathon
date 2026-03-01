@@ -134,3 +134,27 @@
 
 -   **Mise à Jour des Agents (`search_prompt.py` & `update_prompt.py`) :**
     -   **Alignement des Stratégies :** Intégration des nouveaux prompts modulaires. Nettoyage des sections `<search-strategy>`, `<update-strategy>` et `<rules>` pour supprimer les mentions obsolètes de `tree.md` et renforcer les comportements attendus (lecture d'abord, usage de concat, gestion des dates via le contexte).
+
+### ✅ **Phase 19 : Refonte de l'architecture des Tools (Découplage LangChain et Co-localisation)**
+
+-   **Architecture & Stratégie :**
+    -   **Suppression de la dépendance LangChain :** Retrait de `langchain-core` pour la génération des schémas d'outils. Le projet utilise désormais une approche native basée sur l'introspection Python (`inspect`) et `pydantic` (déjà présent) pour générer les schémas JSON compatibles avec l'API OpenAI/OpenRouter. Cela allège considérablement les dépendances tout en gardant exactement la même ergonomie.
+    -   **Co-localisation (Single Source of Truth) :** Résolution de la fragmentation de la connaissance des outils. Auparavant, la définition technique, l'implémentation et les directives de prompt d'un outil étaient dispersées dans plusieurs dossiers. Désormais, chaque outil possède un fichier unique et dédié contenant sa fonction, son instanciation et son prompt de guidance.
+
+-   **Implémentation du Core Tooling :**
+    -   **`core/agent/tools/tool_base.py` :** Réécriture complète de la classe `BaseTool`. 
+        - Implémentation de la fonction `_parse_docstring` utilisant des expressions régulières pour extraire la description globale et les descriptions individuelles des paramètres à partir de docstrings au format Google.
+        - Création de `_build_args_schema` qui combine `typing.get_type_hints`, `inspect.signature` et `pydantic.create_model` pour générer dynamiquement un modèle Pydantic représentant les arguments.
+        - L'interface publique (`to_schema()` et `invoke()`) reste inchangée, garantissant une compatibilité totale avec le `LLMClient` existant. Le champ d'état `result` inutile a été supprimé.
+
+-   **Migration et Modularisation des Outils :**
+    -   **`core/agent/tools/*_tool.py` :** Création de 9 fichiers distincts (`read_tool.py`, `search_tool.py`, `tree_tool.py`, `write_tool.py`, `edit_tool.py`, `append_tool.py`, `move_tool.py`, `delete_tool.py`, `concat_tool.py`). 
+        - Chaque fichier encapsule la fonction métier avec une docstring stricte (Description + section `Args:`).
+        - Chaque fichier instancie son propre outil (ex: `ReadTool = BaseTool(read)`).
+        - Chaque fichier déclare sa constante de prompt XML associée (ex: `READ_TOOL_PROMPT`), fusionnant ainsi la documentation technique et la stratégie d'utilisation pour le LLM.
+    -   **Nettoyage du code mort :** Suppression du fichier monolithique `core/agent/tools/tools.py` (qui centralisait tous les outils) et suppression complète du dossier `core/agent/prompts/tools_prompts/` (qui fragmentait les prompts).
+
+-   **Mise à jour de l'Orchestration (Agents & Prompts) :**
+    -   **`core/agent/agent/search_agent.py` & `update_agent.py` :** Suppression de l'utilisation des listes globales (`SEARCH_TOOLS`, `UPDATE_TOOLS`) et du fichier `__init__.py` intermédiaire. Les agents importent désormais explicitement les instances d'outils dont ils ont besoin depuis les modules individuels et les passent directement dans l'appel `super().__init__(tools=[...])`.
+    -   **`core/agent/prompts/search_agent_prompt.py` & `update_agent_prompt.py` :** Refactoring des imports. Les constantes de prompt (ex: `SEARCH_TOOL_PROMPT`) sont maintenant importées directement depuis les nouveaux fichiers `*_tool.py` pour construire le `SYSTEM_PROMPT` final.
+    -   **Correction d'heuristique :** Restauration du paragraphe critique "**Know when you have enough.**" dans le bloc `<search-strategy>` du `search_agent_prompt.py`, qui avait été accidentellement altéré lors de la manipulation des diffs, garantissant que l'agent conserve sa capacité à s'arrêter de chercher de manière autonome.

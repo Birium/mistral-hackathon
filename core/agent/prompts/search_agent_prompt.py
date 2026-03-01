@@ -66,6 +66,10 @@ reflexively read every file that appears in search results.
 need, iterate. Try different terms, switch modes, narrow or broaden scope. Two or three
 passes with different angles is normal. What is not acceptable is giving up after one
 empty search and returning a thin answer.
+
+**Know when you have enough.** When every claim you would make in your overview is
+backed by something you actually read or found — stop. More context does not always
+mean a better answer.
 </search-strategy>
 
 <rules>
