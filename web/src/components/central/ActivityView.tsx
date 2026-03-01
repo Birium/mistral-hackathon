@@ -25,7 +25,7 @@ export function ActivityView() {
   }
 
   return (
-    <div className="space-y-4 max-w-2xl py-5">
+    <div className="space-y-4 min-w-2xl max-w-2xl py-5">
       {/* User message bubble — persists for the full activity session */}
       {displayedMessage && (
         <div className="inline-block max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tl-sm bg-muted text-sm text-foreground">
