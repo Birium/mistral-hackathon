@@ -1,4 +1,4 @@
-import { CheckCircle, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { ErrorState } from '@/components/shared/ErrorState'
 import type { ActivityResult, ChatMode } from '@/types'
@@ -68,13 +68,6 @@ export function ActivityView({
   // update / answering
   return (
     <div className="max-w-2xl space-y-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <CheckCircle className="h-4 w-4 text-green-500" />
-        <span>
-          {result.type === 'answering' ? 'Reply sent' : 'Update complete'}
-        </span>
-      </div>
-
       {result.content && <MarkdownRenderer content={result.content} />}
 
       {result.touched_files && result.touched_files.length > 0 && (

@@ -146,6 +146,7 @@ export default function App() {
           content: res.result,
           query,
         })
+        toast.success(chatMode === 'answering' ? 'Reply sent' : 'Update complete')
         if (chatMode === 'answering') {
           setChatMode('update')
           setAnsweringRef(null)

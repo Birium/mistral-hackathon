@@ -55,8 +55,8 @@ export function ChatInput({
 
   return (
     <div
-      className="fixed bottom-6 z-20"
-      style={{ left: 'calc(18rem + 1.5rem)', right: '1.5rem' }}
+      className="fixed bottom-6 z-20 max-w-2xl"
+      style={{ left: 'calc(18rem + 2rem)', right: '1.5rem' }}
     >
       <div className="max-w-3xl mx-auto bg-background/80 backdrop-blur-md border shadow-lg rounded-xl overflow-hidden">
       {chatMode === 'answering' && answeringRef && (
