@@ -8,14 +8,15 @@ interface ActivityViewProps {
   error: string | null
   result: ActivityResult | null
   chatMode: ChatMode
+  pendingMessage?: string | null
   onSelectFile?: (path: string) => void
   onRetry?: () => void
 }
 
 const LOADING_LABELS: Record<ChatMode, string> = {
-  update: 'Mise à jour en cours...',
-  search: 'Recherche en cours...',
-  answering: 'Traitement de la réponse...',
+  update: 'Updating...',
+  search: 'Searching...',
+  answering: 'Processing reply...',
 }
 
 export function ActivityView({
@@ -23,14 +24,22 @@ export function ActivityView({
   error,
   result,
   chatMode,
+  pendingMessage,
   onSelectFile,
   onRetry,
 }: ActivityViewProps) {
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="text-sm">{LOADING_LABELS[chatMode]}</span>
+      <div className="max-w-2xl space-y-6">
+        {pendingMessage && (
+          <div className="px-4 py-3 bg-muted rounded-lg text-sm text-foreground ml-auto w-fit max-w-xl">
+            {pendingMessage}
+          </div>
+        )}
+        <div className="flex flex-col items-center justify-center gap-3 py-8 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-sm">{LOADING_LABELS[chatMode]}</span>
+        </div>
       </div>
     )
   }
@@ -45,7 +54,7 @@ export function ActivityView({
     if (!result.content.trim()) {
       return (
         <p className="text-muted-foreground text-sm">
-          Aucun résultat trouvé pour &ldquo;{result.query}&rdquo;
+          No results found for &ldquo;{result.query}&rdquo;
         </p>
       )
     }
@@ -62,7 +71,7 @@ export function ActivityView({
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <CheckCircle className="h-4 w-4 text-green-500" />
         <span>
-          {result.type === 'answering' ? 'Réponse envoyée' : 'Mise à jour effectuée'}
+          {result.type === 'answering' ? 'Reply sent' : 'Update complete'}
         </span>
       </div>
 
@@ -71,7 +80,7 @@ export function ActivityView({
       {result.touched_files && result.touched_files.length > 0 && (
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Fichiers modifiés
+            Modified files
           </p>
           {result.touched_files.map((f) => (
             <button

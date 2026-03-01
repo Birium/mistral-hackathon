@@ -10,18 +10,18 @@ function formatRelativeTime(updatedAt: string | null): string {
   if (!updatedAt) return '—'
   const diff = Date.now() - new Date(updatedAt).getTime()
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return "à l'instant"
-  if (minutes < 60) return `il y a ${minutes} min`
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `il y a ${hours} h`
+  if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
-  return `il y a ${days} j`
+  return `${days}d ago`
 }
 
 export function InboxListView({ items, onOpenDetail }: InboxListViewProps) {
   if (items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">Aucun item en attente.</p>
+      <p className="text-sm text-muted-foreground">No pending items.</p>
     )
   }
 

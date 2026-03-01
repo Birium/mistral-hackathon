@@ -4,7 +4,7 @@ interface LoadingStateProps {
   message?: string
 }
 
-export function LoadingState({ message = 'Chargement...' }: LoadingStateProps) {
+export function LoadingState({ message = 'Loading...' }: LoadingStateProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
       <Loader2 className="h-6 w-6 animate-spin" />

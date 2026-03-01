@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { toast } from 'sonner'
 import type { ViewType, ChatMode, TreeNode, ActivityResult, InboxDetail } from './types'
 import { fetchTree, fetchFile, fetchInboxDetail, sendUpdate, sendSearch } from './api'
 import { useSSE } from './hooks/useSSE'
+import { useTheme } from './hooks/useTheme'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { CentralZone } from './components/central/CentralZone'
 import { ChatInput } from './components/chat/ChatInput'
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme()
+
   // ── Global state ──────────────────────────────────────────────────────────
   const [currentView, setCurrentView] = useState<ViewType>('home')
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
@@ -22,6 +26,7 @@ export default function App() {
   const [inboxDetailError, setInboxDetailError] = useState<string | null>(null)
   const [chatValue, setChatValue] = useState('')
   const [focusTrigger, setFocusTrigger] = useState(0)
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const inboxItems =
@@ -71,7 +76,7 @@ export default function App() {
       const data = await fetchFile(relPath)
       setFileContent(data.content)
     } catch (e) {
-      setFileContent(`Erreur: impossible de charger le fichier.\n${e}`)
+      setFileContent(`Error: could not load file.\n${e}`)
     }
   }, [])
 
@@ -123,6 +128,7 @@ export default function App() {
     setIsLoading(true)
     setError(null)
     setActivityResult(null)
+    setPendingMessage(query)
 
     try {
       if (chatMode === 'search') {
@@ -146,9 +152,12 @@ export default function App() {
         }
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
+      setPendingMessage(null)
     }
   }, [chatValue, chatMode, answeringRef])
 
@@ -161,6 +170,8 @@ export default function App() {
         selectedPath={selectedFilePath}
         onSelectFile={onSelectFile}
         onOpenInbox={onOpenInbox}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -173,6 +184,7 @@ export default function App() {
             error={error}
             activityResult={activityResult}
             chatMode={chatMode}
+            pendingMessage={pendingMessage}
             inboxItems={inboxItems}
             inboxDetail={inboxDetail}
             inboxDetailLoading={inboxDetailLoading}

@@ -39,7 +39,7 @@ export function ChatInput({
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
   }, [value])
 
-  // Focus when focusTrigger changes (e.g. after clicking Répondre)
+  // Focus when focusTrigger changes (e.g. after clicking Reply)
   useEffect(() => {
     if (focusTrigger !== undefined && focusTrigger > 0) {
       textareaRef.current?.focus()
@@ -55,9 +55,10 @@ export function ChatInput({
 
   return (
     <div
-      className="fixed bottom-6 z-20 bg-background/80 backdrop-blur-md border shadow-lg rounded-xl overflow-hidden"
+      className="fixed bottom-6 z-20"
       style={{ left: 'calc(18rem + 1.5rem)', right: '1.5rem' }}
     >
+      <div className="max-w-3xl mx-auto bg-background/80 backdrop-blur-md border shadow-lg rounded-xl overflow-hidden">
       {chatMode === 'answering' && answeringRef && (
         <AnsweringBanner answeringRef={answeringRef} onCancel={onCancelReply} />
       )}
@@ -76,8 +77,8 @@ export function ChatInput({
           disabled={disabled}
           placeholder={
             chatMode === 'search'
-              ? 'Rechercher dans le vault...'
-              : 'Envoyer une mise à jour...'
+              ? 'Search the vault...'
+              : 'Send an update...'
           }
           className={cn(
             'flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground py-1 max-h-[200px] leading-relaxed',
@@ -97,10 +98,11 @@ export function ChatInput({
         <button
           disabled
           className="shrink-0 rounded-full h-8 w-8 flex items-center justify-center bg-muted text-muted-foreground cursor-not-allowed opacity-50"
-          title="Pièce jointe (non disponible)"
+          title="Attachment (unavailable)"
         >
           <Paperclip className="h-4 w-4" />
         </button>
+      </div>
       </div>
     </div>
   )

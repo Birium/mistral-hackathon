@@ -15,6 +15,7 @@ interface CentralZoneProps {
   error: string | null
   activityResult: ActivityResult | null
   chatMode: ChatMode
+  pendingMessage: string | null
   // inbox
   inboxItems: TreeNode[]
   inboxDetail: InboxDetail | null
@@ -35,6 +36,7 @@ export function CentralZone({
   error,
   activityResult,
   chatMode,
+  pendingMessage,
   inboxItems,
   inboxDetail,
   inboxDetailLoading,
@@ -62,6 +64,7 @@ export function CentralZone({
           error={error}
           result={activityResult}
           chatMode={chatMode}
+          pendingMessage={pendingMessage}
           onSelectFile={onSelectFile}
         />
       )}

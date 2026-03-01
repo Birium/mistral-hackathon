@@ -23,7 +23,7 @@ export function InboxDetailView({
   onReply,
   onSelectFile,
 }: InboxDetailViewProps) {
-  if (loading) return <LoadingState message="Chargement de l'inbox..." />
+  if (loading) return <LoadingState message="Loading inbox..." />
   if (error) return <ErrorState message={error} onRetry={onBack} />
   if (!detail) return null
 
@@ -36,7 +36,7 @@ export function InboxDetailView({
         </Button>
         <h2 className="text-lg font-semibold flex-1 truncate">{detail.name}</h2>
         <Button size="sm" onClick={() => onReply(detail.name)}>
-          Répondre
+          Reply
         </Button>
       </div>
 
@@ -47,7 +47,7 @@ export function InboxDetailView({
           <Separator />
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">
-              Fichiers sources
+              Source files
             </p>
             {detail.input_files.map((f) => (
               <button

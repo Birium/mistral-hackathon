@@ -29,6 +29,7 @@ export function FileTreeNode({ node, depth, selectedPath, onSelectFile }: FileTr
         )}
         style={{ paddingLeft: indent }}
       >
+        <span className="w-3.5 shrink-0" />
         <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="flex-1 truncate">{node.name}</span>
         {node.tokens > 0 && (

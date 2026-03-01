@@ -14,14 +14,14 @@ export function HomeView() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <LoadingState message="Chargement de l'aperçu..." />
+  if (loading) return <LoadingState message="Loading overview..." />
 
   if (content === null) {
     return (
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold mb-2">Bienvenue dans le vault</h1>
+        <h1 className="text-2xl font-bold mb-2">Welcome to the vault</h1>
         <p className="text-muted-foreground">
-          Utilisez le chat ci-dessous pour mettre à jour ou rechercher dans votre vault.
+          Use the chat below to update or search your vault.
         </p>
       </div>
     )
