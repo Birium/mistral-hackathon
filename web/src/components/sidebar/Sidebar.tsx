@@ -1,29 +1,28 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Separator } from '@/components/ui/separator'
-import type { TreeNode } from '@/types'
-import { FileTree } from './FileTree'
+import { useTree } from '@/contexts/TreeContext'
+import { useTheme } from '@/hooks/useTheme'
+import { useFileNavigation } from '@/hooks/useFileNavigation'
+import { AiFileTree } from './AiFileTree'
 import { InboxButton } from './InboxButton'
 import { ThemeToggle } from './ThemeToggle'
 
-interface SidebarProps {
-  treeData: TreeNode | null
-  inboxCount: number
-  selectedPath: string | null
-  onSelectFile: (path: string) => void
-  onOpenInbox: () => void
-  theme: 'light' | 'dark'
-  onToggleTheme: () => void
-}
+export function Sidebar() {
+  const { treeData, inboxCount } = useTree()
+  const { theme, toggleTheme } = useTheme()
+  const navigateToFile = useFileNavigation()
+  const navigate = useNavigate()
+  const location = useLocation()
 
-export function Sidebar({
-  treeData,
-  inboxCount,
-  selectedPath,
-  onSelectFile,
-  onOpenInbox,
-  theme,
-  onToggleTheme,
-}: SidebarProps) {
   const children = treeData?.children ?? []
+
+  const selectedPath = location.pathname.startsWith('/file/')
+    ? location.pathname.replace(/^\/file\//, '')
+    : null
+
+  const handleSelectFolder = (path: string) => {
+    navigate(`/folder/${path.replace(/\/$/, '')}`)
+  }
 
   return (
     <div className="w-72 h-full border-r flex flex-col shrink-0">
@@ -32,18 +31,18 @@ export function Sidebar({
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Vault
           </p>
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <FileTree
+        <AiFileTree
           nodes={children}
-          depth={0}
           selectedPath={selectedPath}
-          onSelectFile={onSelectFile}
+          onSelectFile={navigateToFile}
+          onSelectFolder={handleSelectFolder}
         />
       </div>
       <Separator />
       <div className="px-2 py-2">
-        <InboxButton count={inboxCount} onClick={onOpenInbox} />
+        <InboxButton count={inboxCount} onClick={() => navigate('/inbox')} />
       </div>
     </div>
   )
