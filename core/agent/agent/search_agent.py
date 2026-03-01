@@ -1,7 +1,7 @@
 from agent.agent.base_agent import BaseAgent
 from agent.agent.context import load_vault_context
 from agent.llm.config import DEFAULT_MODEL
-from agent.prompts.search_prompt import SEARCH_SYSTEM_PROMPT
+from agent.prompts.search_agent_prompt import SEARCH_SYSTEM_PROMPT
 from agent.tools.tools import SEARCH_TOOLS
 
 

@@ -28,7 +28,7 @@
   ```
   Cela nécessite de modifier `core/functions/concat/concat.py` (ou le wrapper qui boucle sur les fichiers) pour supprimer le wrapper global et les headers H1, et retourner simplement les blocs concaténés par des sauts de ligne.
 
-- [ ] Corriger l'erreur de validation Pydantic sur le tool `read`
+- [x] Corriger l'erreur de validation Pydantic sur le tool `read`
 
   L'agent envoie parfois une liste de chaînes (`['path1', 'path2']`) au lieu d'une chaîne unique pour l'argument `paths`, ce qui provoque une erreur de validation Pydantic (`Input should be a valid string`). Il faut mettre à jour la signature de `read` dans `tools.py` pour accepter `Union[str, List[str]]` afin que Pydantic valide correctement l'entrée avant qu'elle n'arrive à la logique du tool.
 

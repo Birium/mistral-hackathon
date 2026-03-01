@@ -1,7 +1,7 @@
 from agent.agent.base_agent import BaseAgent
 from agent.agent.context import load_vault_context
 from agent.llm.config import DEFAULT_MODEL
-from agent.prompts.update_prompt import UPDATE_SYSTEM_PROMPT
+from agent.prompts.update_agent_prompt import UPDATE_SYSTEM_PROMPT
 from agent.tools.tools import UPDATE_TOOLS
 
 

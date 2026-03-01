@@ -114,3 +114,23 @@
     -   **[`core/functions/read/__init__.py`] :** Mise à jour de la signature de `read` et suppression de la normalisation des chemins. Ajout d'une validation `if not paths:` pour rejeter les listes vides.
     -   **Correction des appels directs :** Les appels internes à la fonction `read` (qui contournent le LLM) ont été mis à jour pour respecter le nouveau contrat strict. Les chemins simples passés en arguments ont été encapsulés dans des listes (ex: `read(["overview.md"])`).
     -   **[`core/agent/agent/context.py`] :** Modification de `load_vault_context` pour passer des listes lors de la lecture de `overview.md` et `profile.md`.
+
+### ✅ **Phase 8 : Restructuration Complète du Système de Prompts et Alignement Cognitif**
+
+-   **Architecture Modulaire des Prompts :**
+    -   **Atomisation des Tools :** Abandon du fichier monolithique `tools_prompt.py` au profit d'une structure modulaire `core/agent/prompts/tools/`. Chaque outil dispose désormais de son propre fichier de définition (`search_prompt.py`, `read_prompt.py`, `concat_prompt.py`, etc.), facilitant la maintenance et la lecture.
+    -   **Suppression de Code Mort :** Retrait définitif de `tools_prompt.py` après migration des imports dans les agents.
+
+-   **Correction du Contexte et de l'Environnement (`env_prompt.py`) :**
+    -   **Élimination du fantôme `tree.md` :** Suppression de toutes les références à ce fichier qui n'existe plus physiquement. Remplacement par des instructions explicites sur le bloc XML `<vault-structure>` injecté dynamiquement dans le contexte.
+    -   **Définition du Contexte Initial :** Réécriture de `INITIAL_CONTEXT_PROMPT` pour décrire précisément la structure XML reçue (`<date>`, `<overview>`, `<vault-structure>`, `<profile>`) plutôt que de mentionner des "fichiers chargés".
+    -   **Conscience des Tokens :** Ajout d'une section *Token awareness* dans `AGENTIC_MODEL_PROMPT`. Le modèle est désormais instruit de consulter les comptes de tokens dans `<vault-structure>` avant toute lecture pour éviter de charger des fichiers massifs sans stratégie (head/tail).
+
+-   **Réécriture Stratégique des Tools :**
+    -   **`concat_prompt.py` (Mécanisme Système) :** Clarification critique du fonctionnement de l'outil. Le modèle sait désormais que le système capture automatiquement le résultat de `concat` pour l'ajouter à sa réponse textuelle. Instructions strictes : écrire l'overview en texte clair, appeler `concat` en dernière action, et ne plus rien générer ensuite. Cela vise à éliminer les duplications de contenu et les hallucinations de formatage.
+    -   **`read_prompt.py` (Budget & Hiérarchie) :** Instauration de la règle "Read First" : si le fichier est localisé via l'overview ou la structure, la lecture directe est prioritaire sur la recherche. Ajout de seuils de tokens explicites (~50k) pour guider l'usage de `head`/`tail`.
+    -   **`tree_prompt.py` (Navigation) :** Distinction nette entre la vue statique `depth=1` du contexte initial et l'outil dynamique `tree()` pour l'exploration profonde des sous-dossiers (buckets, inbox).
+    -   **`search_prompt.py` (Mode par Défaut) :** Inversion de la recommandation de mode. `fast` (BM25) devient le défaut pour la précision, tandis que `deep` est réservé aux requêtes sémantiques floues, corrigeant la tendance au timeout sur les recherches profondes inutiles.
+
+-   **Mise à Jour des Agents (`search_prompt.py` & `update_prompt.py`) :**
+    -   **Alignement des Stratégies :** Intégration des nouveaux prompts modulaires. Nettoyage des sections `<search-strategy>`, `<update-strategy>` et `<rules>` pour supprimer les mentions obsolètes de `tree.md` et renforcer les comportements attendus (lecture d'abord, usage de concat, gestion des dates via le contexte).
