@@ -34,7 +34,7 @@
 
 ## Agent behavior philosophy — generous context, fast decisions
 
-- [ ] Write a dedicated prompt section on context window philosophy
+- [x] Write a dedicated prompt section on context window philosophy
 
     This is a standalone section that needs to exist in the agent prompts. Core message: this is knowledge work, not code generation. Large context windows (300k-400k tokens) improve quality rather than degrading it. The agent should load generously — 30k, 40k, 50k in one read is completely fine. The threshold where concern begins is around 150k tokens of active context. Below that, just load and go. No micro-optimization, no agonizing over whether to read a 10k file. The current AGENTIC_MODEL_PROMPT in `core/agent/prompts/agent_loop_prompt.py` has some of this but frames it too cautiously with "token awareness" guidance that encourages conservative behavior. The new version should encourage bold, fast context loading while being smart (not loading irrelevant content).
 
@@ -44,7 +44,7 @@
 
 ## Vault structure description in prompts
 
-- [ ] Add a concrete file tree representation of the vault structure in the environment prompt
+- [x] Add a concrete file tree representation of the vault structure in the environment prompt
 
     The environment prompt in `core/agent/prompts/env_prompt.py` describes the vault structure in prose. It should include an actual tree representation showing the folder hierarchy — similar to what vault.md has in the spec docs. The agent needs to internalize the repeatable project structure (description.md, state.md, tasks.md, changelog.md, bucket/) visually, not just through paragraph descriptions. This is especially important now that tree.md is no longer pre-loaded.
 

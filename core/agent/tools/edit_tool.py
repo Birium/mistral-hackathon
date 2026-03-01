@@ -29,19 +29,25 @@ Edit modifies a precise section of a file via exact search-and-replace. You prov
 the old text and the new text. The tool finds the first occurrence of old_content
 and replaces it. Nothing else in the file is touched.
 
-You MUST read the file via `read` before calling edit. Without the exact current
-content, you cannot construct a valid old_content. This is a hard precondition —
-not a suggestion.
+<precondition>
+You must read the file before calling edit. Without the exact current content, you
+cannot construct a valid old_content. This is a hard precondition — not a suggestion.
+</precondition>
 
-old_content can include line number prefixes from read output (`7  | ## Statut global`).
-The tool strips them automatically before matching. This means you can copy directly
-from a read result without cleaning it up.
+<line-number-prefixes>
+old_content can include line number prefixes from read output
+(`7  | ## Statut global`). The tool strips them automatically before matching.
+Copy directly from a read result without cleaning up.
+</line-number-prefixes>
 
+<matching>
 Make old_content unique enough to match exactly one location in the file. If the text
-you want to change appears multiple times, include enough surrounding context to
-disambiguate. The tool replaces only the first match — if you target the wrong one,
-the edit lands in the wrong place.
+appears multiple times, include enough surrounding context to disambiguate. The tool
+replaces only the first match.
+</matching>
 
-Use edit for state.md status updates, task metadata changes, overview.md project line
-modifications — any case where one section changes and the rest of the file stays identical.
+<when>
+state.md status updates, task metadata changes, overview.md project line edits —
+any case where one section changes and the rest of the file stays identical.
+</when>
 </edit-tool>"""

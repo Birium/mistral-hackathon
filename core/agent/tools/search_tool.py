@@ -47,59 +47,76 @@ SearchTool = BaseTool(search)
 
 SEARCH_TOOL_PROMPT = """\
 <search-tool>
-Search is your discovery tool for cases where you don't know exactly which file contains
-the information, or where reading everything that could be relevant would cost too many tokens.
+Search is the scanning tool. It casts a net across the vault using keywords or semantic
+meaning and returns scored chunks from wherever they match. Use it when you don't know
+where the information lives — to orient yourself before reading.
 
-**When to use search vs read.**
-If you already know which file holds the answer — because the overview named it,
-or the vault-structure confirmed it exists — read directly. Search is for uncertainty:
-when the project is unclear, when the information could be spread across multiple files,
-when you're looking for a specific decision or event buried in a large changelog,
-or when the bucket is too large to read whole.
+<modes>
+<fast>
+BM25 term matching. Instant. Your default mode.
+Matches exact terms: names, dates, identifiers, tags, status values. A rare term in
+2 chunks out of 200 gets massive weight. Use whenever the relevant content shares
+vocabulary with your query.
 
-**Mode: fast vs deep.**
-Use `mode: "fast"` as your default. BM25 matches on exact terms — names, identifiers,
-dates, tags, status values. It is instant and precise. A rare term that appears in
-2 chunks out of 200 gets massive weight. Use fast whenever you know the specific terms
-that should appear in the result: a person's name, a project term, a date, a tag like
-`[décision]` or `status: bloqué`.
+Examples: a person's name, a project term, `[décision]`, `status: bloqué`, a date.
+</fast>
 
-Use `mode: "deep"` when the query is semantic or conceptual — when you don't know
-the exact terms that appear in the vault but you know what you're looking for. Deep runs
-a full pipeline: query expansion, BM25, vector search, RRF fusion, re-ranking. It is
-slower than fast but catches what exact term matching misses. Examples: "that decision
-about payment architecture", "why did we drop the external provider", "everything about
-the main client friction point". Use deep when fast would likely miss the target because
-the relevant content doesn't share exact vocabulary with your query.
+<deep>
+Full semantic pipeline: query expansion, BM25, vector search, RRF fusion, re-ranking.
+Takes ~10 seconds. Use when you don't know the exact terms that appear in the vault
+but you know what you're looking for conceptually.
 
-**Scopes.**
-Use scopes aggressively. If the question is about one project, scope to that project.
-If you're looking for blocked tasks across all projects, scope to all tasks files.
-Scoped searches are faster and return cleaner, more relevant results.
+Examples: "that decision about payment architecture", "why did we drop the external
+provider", "the main client friction point".
+</deep>
 
-Common scope patterns:
-- One project, all files: `["vault/projects/[name]/*"]`
-- All project states: `["vault/projects/*/state.md"]`
-- All changelogs: `["vault/projects/*/changelog.md", "vault/changelog.md"]`
-- All tasks: `["vault/projects/*/tasks.md", "vault/tasks.md"]`
-- All buckets: `["vault/projects/*/bucket/*", "vault/bucket/*"]`
-- All descriptions: `["vault/projects/*/description.md"]`
+Rule of thumb: if you can name what you're searching for, use fast. If you can only
+describe it, use deep.
+</modes>
 
-**Multiple queries in one call.**
-Pass multiple queries in a single call for broad coverage:
-`queries: ["comptable", "TVA", "bilan"]`. Results are merged, deduplicated, and ranked
-globally. This is more efficient than three separate search calls and works well when
-you're exploring a topic from multiple angles or are unsure which exact term appears.
+<scopes>
+Scope every search. Unscoped searches waste ranking on irrelevant files.
 
-**Reading from search results.**
-Search results include surrounding context lines, scores, and source paths. Read the
-chunks carefully before reaching for read — often the chunk itself contains enough
-to answer the question, or it precisely identifies the file and section you need.
-A high-scoring chunk from a changelog entry may already give you everything. Do not
-reflexively read every file that appears in search results.
+One project, all files:       ["vault/projects/[name]/*"]
+All project states:           ["vault/projects/*/state.md"]
+All changelogs:               ["vault/projects/*/changelog.md", "vault/changelog.md"]
+All tasks:                    ["vault/projects/*/tasks.md", "vault/tasks.md"]
+All buckets:                  ["vault/projects/*/bucket/*", "vault/bucket/*"]
+All descriptions:             ["vault/projects/*/description.md"]
+</scopes>
 
-**Iterating when results are poor.**
-If the first search didn't find what you need: try different terms, switch modes,
-narrow or broaden scope. Two or three passes with different angles is normal. What is
-not acceptable is giving up after one empty search and returning a thin answer.
+<multi-query>
+Pass multiple queries in one call for broad coverage. Results are merged, deduplicated,
+and ranked globally. More efficient than separate calls.
+
+Example: `queries: ["comptable", "TVA", "bilan"]` — explores a topic from three angles.
+</multi-query>
+
+<examples>
+User asks "where does project X stand?"
+→ Don't search. Read `projects/X/state.md` directly — destination is known.
+
+User asks "when did we decide to drop the external API?"
+→ `search(queries=["API externe", "décision API"], mode="fast", scopes=["vault/projects/*/changelog.md", "vault/changelog.md"])`
+
+User asks "everything related to Marie"
+→ `search(queries=["Marie"], mode="fast")` — no scope, cast wide.
+
+User asks "that discussion about simplifying the onboarding flow"
+→ `search(queries=["simplifying onboarding flow"], mode="deep", scopes=["vault/projects/*/changelog.md", "vault/projects/*/bucket/*"])`
+
+User asks "are any projects blocked?"
+→ Don't search. `read(["projects/*/state.md"])` — glob covers all states directly.
+</examples>
+
+<using-results>
+Search results include surrounding context lines. Read the chunks before reaching for
+read — often the chunk itself answers the question or pinpoints the exact file and
+section. Do not reflexively read every file that appears in results.
+</using-results>
+
+<iteration>
+If the first search returns nothing useful: try different terms, switch modes, broaden
+or narrow scope. Two to three passes is normal. Giving up after one empty result is not.
+</iteration>
 </search-tool>"""
