@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import frontmatter
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from watcher import subscribe, unsubscribe
@@ -145,3 +145,28 @@ async def get_inbox(name: str):
     ]
 
     return {"name": name, "review": review_content, "input_files": sorted(input_files)}
+
+
+@router.post("/transcribe")
+async def transcribe(audio: UploadFile = File(...)):
+    import httpx
+    from env import env
+
+    api_key = env.ELEVENLABS_API_KEY
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ELEVENLABS_API_KEY not set")
+
+    content = await audio.read()
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": api_key},
+            files={"file": (audio.filename or "audio.webm", content, audio.content_type or "audio/webm")},
+            data={"model_id": "scribe_v1"},
+            timeout=30.0,
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    return {"text": resp.json().get("text", "")}

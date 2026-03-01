@@ -20,7 +20,8 @@ export default defineConfig({
       '/sse':    'http://localhost:8000',
       '/tree':   'http://localhost:8000',
       '/file':   'http://localhost:8000',
-      '/inbox':  'http://localhost:8000',
+      '/inbox':       'http://localhost:8000',
+      '/transcribe':  'http://localhost:8000',
     }
   }
 })
