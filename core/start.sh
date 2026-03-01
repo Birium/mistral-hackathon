@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
+# ── Load config ────────────────────────────────────────────────────────────
+CONFIG="$HOME/.config/knower/config"
+if [[ -f "$CONFIG" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$CONFIG"
+  set +a
+fi
+
 # ── Guards ─────────────────────────────────────────────────────────────────
-[[ -n "$VAULT_PATH" ]]  || { echo "❌ VAULT_PATH not set."; exit 1; }
-[[ -n "$KNOWER_ENV" ]]  || { echo "❌ KNOWER_ENV not set (dev|prod)."; exit 1; }
-[[ -n "$KNOWER_HOME" ]] || { echo "❌ KNOWER_HOME not set."; exit 1; }
+[[ -n "$VAULT_PATH" ]]          || { echo "❌ VAULT_PATH not set."; exit 1; }
+[[ -n "$KNOWER_ENV" ]]          || { echo "❌ KNOWER_ENV not set (dev|prod)."; exit 1; }
+[[ -n "$KNOWER_HOME" ]]         || { echo "❌ KNOWER_HOME not set."; exit 1; }
+[[ -n "$OPENROUTER_API_KEY" ]]  || { echo "❌ OPENROUTER_API_KEY not set."; exit 1; }
+
 
 CORE_PORT="${CORE_PORT:-8000}"
 QMD_COLLECTION="vault"

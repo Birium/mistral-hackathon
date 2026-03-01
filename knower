@@ -145,7 +145,7 @@ cmd_config() {
       ;;
     show)
       echo ""
-      cat "$CONFIG"
+      sed -E 's/^([A-Za-z_]*_KEY=).*/\1****/' "$CONFIG"
       echo ""
       ;;
     *)

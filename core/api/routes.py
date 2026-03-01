@@ -9,10 +9,12 @@ from typing import Optional
 import frontmatter
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
-from starlette.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
-from watcher import subscribe, unsubscribe
+from starlette.responses import StreamingResponse
+
 from agent.utils.logger import RequestLogger
+from env import env
+from watcher import subscribe, unsubscribe
 
 router = APIRouter()
 
@@ -26,20 +28,27 @@ class SearchPayload(BaseModel):
     user_query: str
 
 
-def _node_to_dict(node) -> dict:
+def _node_to_dict(node, vault_root: Path) -> dict:
+    try:
+        rel = Path(node.path).relative_to(vault_root)
+    except ValueError:
+        rel = Path(node.path)  # fallback, should never happen
     return {
         "name": node.name,
-        "path": str(node.path),
+        "path": str(rel),  # "tasks.md" or "projects/foo.md"
         "type": "directory" if node.is_directory else "file",
         "tokens": node.tokens,
         "updated_at": node.mtime.isoformat() if node.mtime else None,
-        "children": [_node_to_dict(c) for c in node.children] if node.is_directory else None,
+        "children": [_node_to_dict(c, vault_root) for c in node.children]
+        if node.is_directory
+        else None,
     }
 
 
 # ---------------------------------------------------------------------------
 # Streaming bridge: sync agent generator → async NDJSON stream
 # ---------------------------------------------------------------------------
+
 
 async def _stream_agent(agent_iter, request_name: str):
     """
@@ -93,6 +102,7 @@ def _streaming_response(agent_iter, request_name: str) -> StreamingResponse:
 # Routes
 # ---------------------------------------------------------------------------
 
+
 @router.post("/update")
 async def update(payload: UpdatePayload):
     from agent.agent.update_agent import UpdateAgent
@@ -135,25 +145,23 @@ async def sse(request: Request):
 async def tree():
     from functions.tree.scanner import scan
 
-    vault_path = Path(os.getenv("VAULT_PATH", ""))
+    vault_path = Path(env.VAULT_PATH)
     try:
         node = scan(vault_path)
-        return {"tree": _node_to_dict(node)}
+        return {"tree": _node_to_dict(node, vault_path)}  # pass vault_root
     except FileNotFoundError:
         return {"tree": None}
 
 
 @router.get("/file")
 async def get_file(path: str):
-    vault_path = Path(os.getenv("VAULT_PATH", ""))
+    vault_root = Path(env.VAULT_PATH).resolve()
+    resolved = (vault_root / path).resolve()
 
-    try:
-        resolved = (vault_path / path).resolve()
-        resolved.relative_to(vault_path.resolve())
-    except ValueError:
+    if not resolved.is_relative_to(vault_root):
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    if not resolved.exists() or not resolved.is_file():
+    if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
 
     try:
@@ -167,7 +175,7 @@ async def get_file(path: str):
 
 @router.get("/inbox/{name}")
 async def get_inbox(name: str):
-    vault_path = Path(os.getenv("VAULT_PATH", ""))
+    vault_path = Path(env.VAULT_PATH)
     inbox_dir = vault_path / "inbox" / name
 
     if not inbox_dir.exists() or not inbox_dir.is_dir():
@@ -194,6 +202,7 @@ async def get_inbox(name: str):
 @router.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
     import httpx
+
     from env import env
 
     api_key = env.ELEVENLABS_API_KEY
@@ -205,7 +214,13 @@ async def transcribe(audio: UploadFile = File(...)):
         resp = await client.post(
             "https://api.elevenlabs.io/v1/speech-to-text",
             headers={"xi-api-key": api_key},
-            files={"file": (audio.filename or "audio.webm", content, audio.content_type or "audio/webm")},
+            files={
+                "file": (
+                    audio.filename or "audio.webm",
+                    content,
+                    audio.content_type or "audio/webm",
+                )
+            },
             data={"model_id": "scribe_v1"},
             timeout=30.0,
         )

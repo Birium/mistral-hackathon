@@ -1,7 +1,8 @@
 import asyncio
-import os
 
-VAULT = os.getenv("VAULT_PATH", "")
+from env import env
+
+VAULT = env.VAULT_PATH
 if not VAULT:
     raise RuntimeError("VAULT_PATH env var is not set")
 

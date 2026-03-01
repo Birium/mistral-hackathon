@@ -1,9 +1,10 @@
-import os
 from pathlib import Path
 from typing import Optional
 
-from .scanner import scan
+from env import env
+
 from .formatter import format_tree
+from .scanner import scan
 
 
 def get_tree(path: Optional[str] = None, depth: Optional[int] = None) -> str:
@@ -26,7 +27,7 @@ def get_tree(path: Optional[str] = None, depth: Optional[int] = None) -> str:
     FileNotFoundError
         If *path* does not exist.
     """
-    vault_path = Path(os.getenv("VAULT_PATH", ""))
+    vault_path = Path(env.VAULT_PATH)
     tree_file_path = Path(vault_path) if not path else Path(vault_path) / path
 
     node = scan(tree_file_path)

@@ -2,10 +2,11 @@ import os
 from pathlib import Path
 from typing import Union
 
+from env import env
 from functions.frontmatter import update_created, update_tokens
 from functions.frontmatter.io import write_frontmatter
 
-_VAULT = os.getenv("VAULT_PATH", "")
+_VAULT = env.VAULT_PATH
 
 
 def create_file(path: Union[str, Path], body: str = "") -> Path:

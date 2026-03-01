@@ -1,6 +1,8 @@
 import os
 
+from env import env
 from functions.frontmatter.layout import FM
+
 
 def _fm(body: str) -> str:
     lines = []
@@ -11,6 +13,7 @@ def _fm(body: str) -> str:
     lines.append("---")
     return "\n".join(lines) + "\n\n" + body
 
+
 SEED_FILES = {
     "overview.md": _fm("# Vault Overview\n\nThis vault is empty."),
     "tree.md": _fm("# Tree\n\n(auto-generated)"),
@@ -20,8 +23,9 @@ SEED_FILES = {
 }
 SEED_DIRS = ["inbox", "bucket", "projects"]
 
+
 def init_vault():
-    vault_path = os.getenv("VAULT_PATH", "")
+    vault_path = env.VAULT_PATH
     if not vault_path:
         raise RuntimeError("VAULT_PATH env var is not set")
     for dir_name in SEED_DIRS:
