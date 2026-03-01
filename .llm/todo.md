@@ -1,43 +1,79 @@
 # Todo
 
-Ce fichier est la source de vérité de tout ce qui reste à faire, à clarifier, et à documenter dans le projet. Il capture sans exception tout le contexte des sessions de brainstorming, de l'analyse critique des specs tools, et des feedbacks de révision. Rien ne doit être perdu ici.
+## Search
 
----
+- [ ] Résoudre le timeout du deep search
 
-## Contexte général — décisions structurantes à garder en tête
+  C'est le problème bloquant du projet. Le `search` tool dans `core/agent/tools/tools.py` appelle `asyncio.run(_search_impl(...))`, qui fan-out vers `qmd_client.raw_search()` via `core/functions/search/query.py`. En mode `deep`, les modèles locaux crashent systématiquement — les logs montrent `[qmd] timeout after 30s` sur chaque query, ce qui retourne `merged number = 0` et donc `No results found`. L'agent répond quand même mais sans aucune donnée réelle. À investiguer du côté du client `qmd` et de la configuration des modèles locaux. La fonction `run()` dans `query.py` est l'entrée centrale, et `_search_impl` dans `tools.py` est ce que le LLM appelle via tool call.
 
-Avant toute chose, plusieurs décisions ont été prises lors de la dernière session de révision qui impactent de nombreux fichiers en même temps. Elles sont listées ici pour qu'elles ne soient jamais perdues de vue pendant les réécriture.
+- [ ] Faire retourner la liste des fichiers concaténés dans la réponse finale de l'agent
 
-**Read + Edit avec lignes — décision finale.** Les deux tools utilisent les numéros de lignes. Le `read` retourne toujours le contenu avec les lignes numérotées. Le `edit` travaille également avec les lignes — il y aura une abstraction interne qui ajoute les numéros pour localiser la section à éditer, puis les retire pour appliquer le remplacement dans le fichier réel. Cela rend l'agent plus structuré et plus précis dans ses opérations d'édition.
+  Actuellement, le `SearchAgent` dans `core/agent/agent/search_agent.py` yield tous les events via `base_agent.py`, mais la route `/search` dans `core/api/routes.py` ne collecte que les fragments `answer` pour construire la réponse finale : elle fait `parts.append(event.get("content", ""))` et retourne `{"queries": ..., "answer": answer}`. Le `concat` tool est bien appelé et retourne du contenu (visible dans les logs `[tool←] concat → ...`), mais ce résultat ne remonte jamais dans le JSON de réponse. Il faut collecter les events `tool` de type `end` dont le `name == "concat"` et extraire les paths depuis les arguments, puis les ajouter dans la réponse sous une clé `files` ou similaire. Le schéma de réponse actuel est dans `routes.py`, et `ActivityResult` côté frontend dans `web/src/types.ts` a déjà un champ `touched_files?: string[]` qui attend exactement ça — il suffit de le brancher.
 
-**Scopes du search tool — simplification radicale.** Les scopes prédéfinis comme `"project:[nom]"` ou `"all-states"` dégagent complètement. Le format naturel est un path avec wildcard : `projects/startup-x/` pour un projet précis, `projects/*/state.md` pour tous les states. L'agent connaît parfaitement cette notation et n'a pas besoin d'abstractions supplémentaires. Les scopes cross-cutting de type `all-*` ne sont pas non plus des features supplémentaires à documenter — c'est juste une façon de formuler un path wildcard que l'agent sait déjà faire.
+- [ ] Empêcher le modèle de sortir du contenu brut de fichiers dans sa réponse
 
-**Dates dans le search — feature supplémentaire, pas dans le tool de l'agent.** Les paramètres `date_from` et `date_to` sont documentés uniquement dans le gros fichier `search.md` (le fichier de compréhension du composant), pas dans le fichier tool `tools/search.md` qui décrit comment l'agent utilise le tool. Les dates restent une amélioration future, pas un paramètre exposé à l'agent dans le MVP.
+  Parfois le modèle paraphrase ou recopie du contenu de fichiers directement dans son texte plutôt que de laisser `concat` s'en charger. C'est un problème de prompt : le `SEARCH_SYSTEM_PROMPT` dans `core/agent/prompts/search_prompt.py` dit bien dans sa section `<rules>` de ne jamais résumer les fichiers à la place de les retourner, mais le modèle ne respecte pas toujours cette consigne. Il faut renforcer cette règle dans le prompt, probablement en ajoutant une contrainte explicite sur le format de la réponse textuelle (overview uniquement, jamais de contenu de fichier inline). Voir aussi `SEARCH_TOOL_PROMPT` et `CONCAT_TOOL_PROMPT` dans `tools_prompt.py` pour ajuster les instructions sur ce que le modèle doit et ne doit pas inclure dans son texte.
 
-**Features hors scope — section dans chaque fichier tool.** Tout ce qui est intéressant mais pas MVP ne disparaît pas. Chaque fichier tool aura une section dédiée en bas "Features supplémentaires" qui liste les améliorations identifiées. Comme ça, le potentiel d'évolution de chaque tool est toujours visible dans sa doc.
+## UI
 
-**Pas de fichier QMD séparé.** Tout ce qui concerne QMD vit dans un seul `search.md` (le fichier de compréhension, pas l'outil). Ce fichier explique tout : comment QMD fonctionne, la stratégie de chunking, les modes BM25 et pipeline complet, l'indexation incrémentale, ce qui est indexé ou non. Le tool `tools/search.md` reste léger — il dit juste comment l'agent utilise le search, pas comment QMD fonctionne en dessous.
+- [ ] Afficher les fichiers concaténés comme éléments cliquables dans la réponse du chat
 
-**Images — comportement simple.** Les images vont dans le bucket comme n'importe quel fichier. Quand un agent fait un `read` sur une image, le tool la charge dans la conversation (contexte multimodal) — même fonction `read`, le tool détecte que c'est une image et la traite en conséquence. Pas d'OCR forcé, pas de conversion en texte. Le tokeniser d'images (calculer combien de tokens coûte une image selon son format/résolution) est une feature supplémentaire documentée dans le fichier du background job.
+  Une fois que la liste de fichiers remonte dans la réponse (tâche search ci-dessus), il faut les afficher dans `ActivityView` (`web/src/components/central/ActivityView.tsx`). La structure de base existe déjà : le composant a une section `touched_files` avec des boutons `onClick={() => onSelectFile?.(f)}` — elle est déjà là mais jamais alimentée parce que le backend ne renvoie pas encore les fichiers. Attention : il faut que le contenu Markdown de la réponse (`result.content`) reste bien affiché par `MarkdownRenderer` au-dessus, et que les fichiers apparaissent dessous. Ne pas les fusionner.
 
-**Tree — aligné, pas de changement majeur.** Le paramètre `metadata` du tool `tree` disparaît. La sortie affiche toujours et uniquement : nom du fichier, tokens, date de dernière modification. `tree.md` (le fichier auto-généré) utilise la même fonction que le tool `tree()` — ce sont deux faces de la même logique, pas deux implémentations séparées.
+- [ ] Supprimer les tokens affichés dans la sidebar des nœuds fichiers
 
----
+  Dans `FileTreeNode` (`web/src/components/sidebar/FileTreeNode.tsx`), les fichiers et dossiers affichent `{node.tokens > 0 && <span ...>{node.tokens}</span>}`. Ces tokens viennent de `TreeNode.tokens` dans `types.ts`, lui-même rempli par `_node_to_dict()` dans `routes.py` qui lit `node.tokens` depuis le scanner. Ce n'est pas l'info à mettre dans la sidebar. À supprimer ou remplacer par quelque chose d'utile (date, rien du tout).
 
-## Fichier à créer — `search.md` (version complète)
+- [ ] Implémenter un loading state avec événements streamés depuis l'API
 
-Ce fichier remplace et étend largement le `search.md` actuel du dossier MVP. C'est le fichier de compréhension complète du composant search — il couvre tout ce qui se passe sous le capot, de QMD jusqu'au concat engine.
+  Actuellement `/search` et `/update` dans `routes.py` sont des endpoints REST synchrones — ils attendent la fin de l'agent avant de répondre. Pour avoir du feedback en temps réel, il faudrait les convertir en SSE ou utiliser le canal SSE existant (`/sse` via `watcher.py`). Le frontend a déjà `useSSE` dans `web/src/hooks/useSSE.ts` et `EventSourceResponse` est déjà importé dans `routes.py`. L'agent émet des events typés (`think`, `tool`, `answer`, `usage`) via `BaseAgent._loop()` dans `base_agent.py` — ces events pourraient être relayés vers le frontend directement. En fallback acceptable : un loading state simple avec le message `pendingMessage` existant dans `App.tsx`, qui est déjà passé à `ActivityView` mais seulement affiché avec un spinner générique.
 
-Ce que le fichier devra couvrir :
+- [ ] Refaire la chat input avec les composants Vercel
 
-**QMD — la couche d'indexation.** Ce qu'est QMD, comment il s'installe et se configure, les trois modes natifs (`search`, `vsearch`, `query`) et lesquels on expose dans le tool (fast = `search`, deep = `query`). La stratégie de chunking : QMD chunke aux breakpoints de score élevé dans la structure markdown. H1 = score 100, H2 = score 90. Ce sont les points de découpe naturels. Comment ça s'applique aux différents types de fichiers du vault : changelogs (H1 par jour reste cohérent, découpe au H2 si une journée est très dense), tasks (H1 par tâche = un chunk par tâche), fichiers courts comme `state.md` et `description.md` (généralement un seul chunk par fichier), items bucket (un ou plusieurs chunks selon la taille mit frontmatter inclus). L'indexation incrémentale : le background job ré-indexe uniquement le fichier modifié après chaque écriture, pas un full re-scan. La table de ce qui est indexé et ce qui ne l'est pas (inchangée par rapport à `vault.md`).
+  `ChatInput` dans `web/src/components/chat/ChatInput.tsx` est positionnée en `fixed` avec `bottom-6` et un calcul de left manuel (`calc(18rem + 2rem)`), ce qui est fragile. Elle doit être plus large, centrée, et construite avec les composants Vercel AI qu'on avait référencés. Le textarea existe (`textareaRef`) et l'auto-resize fonctionne, mais toute la structure visuelle est à revoir. Garder la logique (mode toggle, recording, send) mais refaire le shell.
 
-**La mécanique de retour des chunks.** C'est un point à clarifier à l'écriture. Quelques questions à trancher dans le fichier : est-ce que le retour est toujours un chunk ou parfois un fichier entier ? Comment on détermine si un chunk représente le fichier entier ou seulement une partie ? La décision en cours d'écriture devra répondre à ça. Ce qui est acté : pour chaque chunk retourné, le tool inclut N lignes de contexte au-dessus et N lignes en-dessous dans le fichier source. Cette fenêtre de contexte donne à l'agent une vue suffisante pour raisonner sans avoir à faire un `read` du fichier.
+- [ ] Brancher correctement le contexte inbox dans le chat
 
-**Le concat engine.** Composant mécanique (pas un LLM) qui assemble les fichiers identifiés par l'agent de search en un document structuré. L'agent lui fournit une liste de fichiers avec pour chacun soit le fichier entier soit une range de lignes. L'engine préfixe chaque bloc par le path du fichier.
+  Quand l'utilisateur clique "Reply" sur un inbox item, `onReply(name)` dans `InboxDetailView` appelle `onReply` dans `App.tsx` qui passe `chatMode` en `'answering'` et met `answeringRef` au nom de l'inbox. La `ChatInput` affiche le `AnsweringBanner` et envoie `sendUpdate(query, ref)` avec le `inbox_ref`. Côté backend dans `routes.py`, `inbox_ref` est bien passé à `agent.process(payload.user_query, inbox_ref=payload.inbox_ref)` dans `UpdateAgent`. Ce qui manque : s'assurer que le contenu de l'inbox (le `review.md` et les fichiers sources) est effectivement chargé et injecté dans le contexte de l'agent quand `inbox_ref` est présent. Voir `UpdateAgent.process()` dans `update_agent.py` — actuellement `inbox_ref` est juste appendé en texte brut (`payload += f"\n\ninbox_ref: {inbox_ref}"`), ce qui ne garantit pas que le modèle lira le contenu de l'inbox.
 
-**Le format de sortie.** Deux parties dans l'ordre : l'overview de l'agent (2-5 lignes rédigées par le LLM qui oriente l'utilisateur sur ce qui a été trouvé et pourquoi c'est pertinent) suivie du document concaténé produit par l'engine (contenu brut des fichiers avec leurs paths comme headers). Format identique pour le MCP et l'interface web dans le MVP.
+## Agent
 
-**Section features supplémentaires à inclure dans ce fichier :**
-- Filtrage par date (`date_from`, `date_to`) : explication complète du comportement sur changelogs vs autres fichiers, formats acceptés, cas d'usage.
-- Différenciation de la sortie entre MCP et interface web : le MVP retourne le même format partout, mais à terme l'interface pourrait avoir un rendu plus riche (fichiers cliquables, collapsibles) et l'API MCP un format plus programmatique.
+- [ ] Injecter la date du jour avant chaque appel search ou update agent
+
+  Ni `SearchAgent.process()` ni `UpdateAgent.process()` dans leurs fichiers respectifs n'injectent la date courante dans le payload. Ils construisent `payload = f"{vault_context}\n\n---\n\n{content}"` sans timestamp. La date est critique pour les changelogs (l'`UpdateAgent` doit écrire des entrées `# YYYY-MM-DD` correctes) et pour contextualiser les recherches temporelles. À ajouter dans `_load_vault_context()` de chaque agent ou directement en tête de payload, en `datetime.now().strftime(...)`.
+
+- [ ] Supprimer complètement `tree.md` de partout
+
+  Deux endroits à nettoyer. Dans `SearchAgent._load_vault_context()` et `UpdateAgent._load_vault_context()` (`search_agent.py` et `update_agent.py`), les deux agents font `vault_tree = f"``` tree.md\n{tree(depth=1)}\n```"` et injectent ça dans le prompt avec le label `tree.md`. Le fichier `tree.md` est aussi référencé dans `ENVIRONMENT_PROMPT` (`env_prompt.py`) : `**tree.md** — The complete file structure...` et dans `INITIAL_CONTEXT_PROMPT` : `tree.md — the structure. Use it to assess file sizes...`. Dans `exclusions.py` (`core/functions/search/exclusions.py`), `"tree.md"` est dans `EXCLUDED_EXACT` — cette ligne reste, mais les labels et références au fichier dans les prompts et les agents doivent être remplacés par un label neutre comme "vault structure" ou "trie structure". Le contenu injecté (`tree(depth=1)`) reste utile, seul le nom disparaît.
+
+- [ ] Corriger le bug de dates incorrectes dans le changelog
+
+  Quand l'`UpdateAgent` ajoute une entrée dans un changelog, les dates générées sont mauvaises. Probablement lié à l'absence d'injection de date (tâche ci-dessus) combinée au fait que `update_updated()` dans `core/functions/frontmatter/updated/update.py` écrit `datetime.now()` sans timezone, tandis que `update_created()` dans `core/functions/frontmatter/created/update.py` lit `os.stat(path).st_birthtime` qui est OS-dépendant. L'`APPEND_TOOL_PROMPT` dans `tools_prompt.py` précise bien le format `# 2025-07-14` et que deux H1 identiques sont acceptables — mais si le modèle n'a pas la date, il invente. Combiner l'injection de date avec une vérification que le format attendu est explicite dans le prompt.
+
+- [ ] Corriger le déclenchement intempestif de concat sur un simple tree
+
+  L'agent en Y (probablement le `SearchAgent`) appelle parfois `concat` alors que la requête ne le justifie pas — par exemple pour une simple question de structure. Le `CONCAT_TOOL_PROMPT` dans `tools_prompt.py` dit "Always the last tool you call in a session" et que c'est pour assembler les fichiers pertinents — mais le modèle peut interpréter ça trop largement. À investiguer dans les prompts : soit renforcer la condition d'usage de `concat` dans `CONCAT_TOOL_PROMPT`, soit ajouter une règle dans `<search-strategy>` de `search_prompt.py` qui précise quand `concat` ne doit pas être appelé.
+
+## Prompts
+
+- [ ] Mettre à jour tous les prompts des tools
+
+  Les prompts dans `core/agent/prompts/tools_prompt.py` n'ont pas été mis à jour depuis les dernières évolutions de l'architecture. Chaque tool a son bloc : `SEARCH_TOOL_PROMPT`, `READ_TOOL_PROMPT`, `TREE_TOOL_PROMPT`, `CONCAT_TOOL_PROMPT`, `WRITE_TOOL_PROMPT`, `EDIT_TOOL_PROMPT`, `APPEND_TOOL_PROMPT`, `MOVE_TOOL_PROMPT`, `DELETE_TOOL_PROMPT`. À passer en revue un par un et aligner sur l'état actuel du code, notamment en tenant compte de la suppression de `tree.md` et des changements de comportement attendus des agents.
+
+## Init Agent (Scan Agent)
+
+- [ ] Implémenter le Scan Agent
+
+  Troisième agent à créer, qui n'existe pas encore. Le pattern à suivre est celui de `SearchAgent` et `UpdateAgent` dans `core/agent/agent/` : hériter de `BaseAgent`, définir un `process()` avec injection de contexte, et choisir un subset de tools. Ce Scan Agent reçoit un chemin sur le filesystem local (pas dans le vault) et une description de ce que ça représente. Il explore la structure par lui-même avec `tree` et `read`, identifie les fichiers pertinents, et envoie leur contenu à l'`UpdateAgent` pour ingestion dans le vault. Pas d'embedding, pas de `search` — exploration pure. Il faudra probablement une route dédiée dans `routes.py` et un tool MCP correspondant dans `mcp_server/tools.py` (à côté de `update` et `search` existants).
+
+## Mock Data
+
+- [ ] Affiner les mock data pour la démo
+
+  Des mock data existent déjà dans le vault de test. Il faut construire un scénario narratif cohérent — plusieurs projets, plusieurs clients, des états variés (actif, bloqué, terminé), des changelogs avec des décisions tagguées `[décision]`, des inbox items en attente. Le scénario doit montrer les deux agents sous leur meilleur jour : une recherche complexe cross-projet qui démontre la pertinence du search, et un update qui route intelligemment vers plusieurs fichiers. Le format attendu est documenté dans `ENVIRONMENT_PROMPT` (`env_prompt.py`) — `overview.md`, `projects/[name]/state.md`, `projects/[name]/changelog.md`, etc. Brainstormer un persona utilisateur spécifique (freelance dev, consultant, etc.) avec des projets qui ont une vraie tension narrative pour la démo MCP avec différents clients.
+
+## Logging
+
+- [ ] Restreindre les logs au mode dev uniquement
+
+  `object_logger` dans `core/agent/utils/raw_logger.py` sauvegarde tous les appels LLM bruts dans `./logs/raw_requests/` et imprime `[DEBUG] Raw stream logs saved to ...` — ça arrive en prod. `log_agent_event()` dans `core/agent/utils/logger.py` écrit dans stdout via `logger.info/debug` et dans un fichier NDJSON `logs/agent_events_*.jsonl`. Conditionner tout ça à une variable d'environnement (`DEV=true` ou `LOG_LEVEL`), probablement dans `env.py`. Les routes `/search` et `/update` dans `routes.py` appellent `log_agent_event(event)` dans leur boucle — ce sont les points d'entrée à conditionner.
