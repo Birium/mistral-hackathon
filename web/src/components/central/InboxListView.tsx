@@ -1,6 +1,6 @@
+import { useTree } from '@/hooks/useTree'
 import { Mail } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useTree } from '@/contexts/TreeContext'
 
 function formatRelativeTime(updatedAt: string | null): string {
   if (!updatedAt) return '—'

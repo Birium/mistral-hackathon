@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Separator } from '@/components/ui/separator'
-import { useTree } from '@/contexts/TreeContext'
 import { useTheme } from '@/hooks/useTheme'
 import { useFileNavigation } from '@/hooks/useFileNavigation'
 import { AiFileTree } from './AiFileTree'
 import { InboxButton } from './InboxButton'
 import { ThemeToggle } from './ThemeToggle'
+import { useTree } from '@/hooks/useTree'
 
 export function Sidebar() {
   const { treeData, inboxCount } = useTree()
