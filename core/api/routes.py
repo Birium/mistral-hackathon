@@ -28,14 +28,18 @@ class SearchPayload(BaseModel):
     user_query: str
 
 
-def _node_to_dict(node) -> dict:
+def _node_to_dict(node, vault_root: Path) -> dict:
+    try:
+        rel = Path(node.path).relative_to(vault_root)
+    except ValueError:
+        rel = Path(node.path)  # fallback, should never happen
     return {
         "name": node.name,
-        "path": str(node.path),
+        "path": str(rel),  # "tasks.md" or "projects/foo.md"
         "type": "directory" if node.is_directory else "file",
         "tokens": node.tokens,
         "updated_at": node.mtime.isoformat() if node.mtime else None,
-        "children": [_node_to_dict(c) for c in node.children]
+        "children": [_node_to_dict(c, vault_root) for c in node.children]
         if node.is_directory
         else None,
     }
@@ -144,7 +148,7 @@ async def tree():
     vault_path = Path(env.VAULT_PATH)
     try:
         node = scan(vault_path)
-        return {"tree": _node_to_dict(node)}
+        return {"tree": _node_to_dict(node, vault_path)}  # pass vault_root
     except FileNotFoundError:
         return {"tree": None}
 
