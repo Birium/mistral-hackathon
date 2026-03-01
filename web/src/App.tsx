@@ -6,7 +6,7 @@ import { useSSE } from './hooks/useSSE'
 import { useTheme } from './hooks/useTheme'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { CentralZone } from './components/central/CentralZone'
-import { ChatInput } from './components/chat/ChatInput'
+import { AIPromptInput } from './components/ai-components/ai-prompt-input'
 
 export default function App() {
   const { theme, toggleTheme } = useTheme()
@@ -220,7 +220,7 @@ export default function App() {
           />
         </div>
 
-        <ChatInput
+        <AIPromptInput
           value={chatValue}
           onChange={setChatValue}
           onSend={handleSendMessage}

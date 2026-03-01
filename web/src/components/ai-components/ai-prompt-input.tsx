@@ -6,7 +6,6 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
-import { SpeechInput } from '@/components/ai-elements/speech-input'
 import type { ChatMode } from '@/types'
 import { ModeToggle } from '@/components/chat/ModeToggle'
 import { AnsweringBanner } from '@/components/chat/AnsweringBanner'
@@ -23,7 +22,7 @@ interface ChatInputProps {
   focusTrigger?: number
 }
 
-export function ChatInput({
+export function AIPromptInput({
   value,
   onChange,
   onSend,
@@ -33,15 +32,6 @@ export function ChatInput({
   onCancelReply,
   disabled,
 }: ChatInputProps) {
-
-  async function handleAudioRecorded(audioBlob: Blob): Promise<string> {
-    const form = new FormData()
-    form.append('audio', audioBlob, 'audio.webm')
-    const resp = await fetch('/transcribe', { method: 'POST', body: form })
-    if (!resp.ok) throw new Error(await resp.text())
-    const { text } = await resp.json()
-    return text || ''
-  }
 
   function handleSubmit(_message: PromptInputMessage) {
     onSend()
@@ -71,11 +61,6 @@ export function ChatInput({
               disabled={chatMode === 'answering'}
             />
           </PromptInputTools>
-          <SpeechInput
-            onTranscriptionChange={(text) => onChange(value ? value + ' ' + text : text)}
-            onAudioRecorded={handleAudioRecorded}
-            size="sm"
-          />
         </PromptInputFooter>
       </PromptInput>
     </div>
