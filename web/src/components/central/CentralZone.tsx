@@ -1,94 +1,52 @@
-import type { ViewType, ActivityResult, InboxDetail, ChatMode, TreeNode, AgentEvent } from '@/types'
+import { Routes, Route } from 'react-router-dom'
+import { useChat } from '@/contexts/ChatContext'
+import { AIPromptInput } from '@/components/ai-components/ai-prompt-input'
 import { HomeView } from './HomeView'
 import { FileView } from './FileView'
 import { ActivityView } from './ActivityView'
 import { InboxListView } from './InboxListView'
 import { InboxDetailView } from './InboxDetailView'
+import { FolderView } from './FolderView'
 
-interface CentralZoneProps {
-  currentView: ViewType
-  // file view
-  selectedFilePath: string | null
-  fileContent: string | null
-  // activity view
-  isLoading: boolean
-  error: string | null
-  activityResult: ActivityResult | null
-  chatMode: ChatMode
-  pendingMessage: string | null
-  streamEvents: AgentEvent[]
-  // inbox
-  inboxItems: TreeNode[]
-  inboxDetail: InboxDetail | null
-  inboxDetailLoading: boolean
-  inboxDetailError: string | null
-  // callbacks
-  onSelectFile: (path: string) => void
-  onOpenInboxDetail: (name: string) => void
-  onBackToInboxList: () => void
-  onReply: (name: string) => void
-}
+export function CentralZone() {
+  const {
+    chatValue,
+    setChatValue,
+    chatMode,
+    answeringRef,
+    isLoading,
+    focusTrigger,
+    handleSendMessage,
+    onModeChange,
+    onCancelReply,
+  } = useChat()
 
-export function CentralZone({
-  currentView,
-  selectedFilePath,
-  fileContent,
-  isLoading,
-  error,
-  activityResult,
-  chatMode,
-  pendingMessage,
-  streamEvents,
-  inboxItems,
-  inboxDetail,
-  inboxDetailLoading,
-  inboxDetailError,
-  onSelectFile,
-  onOpenInboxDetail,
-  onBackToInboxList,
-  onReply,
-}: CentralZoneProps) {
   return (
-    <div className="px-8 py-6 min-h-full">
-      {currentView === 'home' && <HomeView />}
-
-      {currentView === 'file' && selectedFilePath && fileContent !== null && (
-        <FileView
-          path={selectedFilePath}
-          content={fileContent}
-          onNavigate={onSelectFile}
-        />
-      )}
-
-      {currentView === 'activity' && (
-        <ActivityView
-          isLoading={isLoading}
-          error={error}
-          result={activityResult}
-          chatMode={chatMode}
-          pendingMessage={pendingMessage}
-          streamEvents={streamEvents}
-          onSelectFile={onSelectFile}
-        />
-      )}
-
-      {currentView === 'inbox-list' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Inbox</h2>
-          <InboxListView items={inboxItems} onOpenDetail={onOpenInboxDetail} />
+    <>
+      <div className="flex-1 overflow-y-auto pb-40">
+        <div className="px-8 py-6 min-h-full">
+          <Routes>
+            <Route path="/" element={<HomeView />} />
+            <Route path="/file/*" element={<FileView />} />
+            <Route path="/folder/*" element={<FolderView />} />
+            <Route path="/activity" element={<ActivityView />} />
+            <Route path="/inbox" element={<InboxListView />} />
+            <Route path="/inbox/:name" element={<InboxDetailView />} />
+          </Routes>
         </div>
-      )}
+      </div>
 
-      {currentView === 'inbox-detail' && (
-        <InboxDetailView
-          detail={inboxDetail}
-          loading={inboxDetailLoading}
-          error={inboxDetailError}
-          onBack={onBackToInboxList}
-          onReply={onReply}
-          onSelectFile={onSelectFile}
-        />
-      )}
-    </div>
+      <AIPromptInput
+        value={chatValue}
+        onChange={setChatValue}
+        onSend={handleSendMessage}
+        chatMode={chatMode}
+        onModeChange={onModeChange}
+        answeringRef={answeringRef}
+        onCancelReply={onCancelReply}
+        disabled={isLoading}
+        focusTrigger={focusTrigger}
+      />
+    </>
   )
 }

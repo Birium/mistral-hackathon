@@ -46,7 +46,7 @@ def load_vault_context() -> str:
 
     try:
         overview_content = read(["overview.md"])
-        vault_tree_content = tree(depth=1)
+        vault_tree_content = tree()
         profile_content = read(["profile.md"])
 
         return VAULT_CONTEXT_TEMPLATE.format(

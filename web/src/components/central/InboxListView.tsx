@@ -1,10 +1,6 @@
 import { Mail } from 'lucide-react'
-import type { TreeNode } from '@/types'
-
-interface InboxListViewProps {
-  items: TreeNode[]
-  onOpenDetail: (name: string) => void
-}
+import { useNavigate } from 'react-router-dom'
+import { useTree } from '@/contexts/TreeContext'
 
 function formatRelativeTime(updatedAt: string | null): string {
   if (!updatedAt) return '—'
@@ -18,30 +14,36 @@ function formatRelativeTime(updatedAt: string | null): string {
   return `${days}d ago`
 }
 
-export function InboxListView({ items, onOpenDetail }: InboxListViewProps) {
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No pending items.</p>
-    )
-  }
+export function InboxListView() {
+  const { inboxItems } = useTree()
+  const navigate = useNavigate()
 
   return (
-    <div className="space-y-2 max-w-xl">
-      {items.map((item) => (
-        <button
-          key={item.path}
-          onClick={() => onOpenDetail(item.name.replace(/\/$/, ''))}
-          className="w-full flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-        >
-          <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="flex-1 text-sm font-medium truncate">
-            {item.name.replace(/\/$/, '')}
-          </span>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {formatRelativeTime(item.updated_at)}
-          </span>
-        </button>
-      ))}
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Inbox</h2>
+
+      {inboxItems.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No pending items.</p>
+      ) : (
+        <div className="space-y-2 max-w-xl">
+          {inboxItems.map((item) => {
+            const name = item.name.replace(/\/$/, '')
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate('/inbox/' + name)}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
+              >
+                <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="flex-1 text-sm font-medium truncate">{name}</span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {formatRelativeTime(item.updated_at)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

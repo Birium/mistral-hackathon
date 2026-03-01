@@ -1,6 +1,6 @@
 """Move tool — relocate files or folders."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.move import move as _move_impl
 
 
@@ -24,16 +24,18 @@ MoveTool = BaseTool(move)
 
 MOVE_TOOL_PROMPT = """\
 <move-tool>
-Move relocates a file or directory from one path to another. The content is untouched —
-only the position in the vault changes. Parent directories at the destination are
-created automatically if they do not exist.
+Move relocates a file or directory from one path to another. Content is untouched —
+only the vault position changes. Parent directories at the destination are created
+automatically.
 
-Use move when routing files from an inbox folder to their final destination after
-the user confirms resolution. Use it when correcting an initial routing mistake,
-or when a bucket item's project ownership becomes clear after further context.
-Move works on entire directories too — useful for relocating inbox folders wholesale.
+<when>
+Routing files from an inbox folder to their final destination after user confirmation.
+Correcting an initial routing mistake. Relocating inbox folders wholesale when the
+entire contents move together.
+</when>
 
-Always verify the source path exists before calling move. Use the vault-structure
-or a tree call to confirm the path — a move to a wrong destination is harder to
-fix than a read that returns nothing.
+<verify>
+Confirm the source path exists before calling move — use vault-structure or a prior
+read result. A move to a wrong destination is harder to fix than a failed read.
+</verify>
 </move-tool>"""

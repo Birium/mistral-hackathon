@@ -15,8 +15,6 @@ export interface InboxDetail {
 
 export type ChatMode = 'update' | 'search' | 'answering'
 
-export type ViewType = 'home' | 'file' | 'activity' | 'inbox-list' | 'inbox-detail'
-
 export interface ActivityResult {
   type: 'update' | 'search' | 'answering'
   content: string

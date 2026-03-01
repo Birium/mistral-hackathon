@@ -1,57 +1,72 @@
-import { useRef, useEffect } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { LoadingState } from '@/components/shared/LoadingState'
+import { useTree } from '@/contexts/TreeContext'
+import { fetchFile } from '@/api'
 
-interface FileViewProps {
-  path: string
-  content: string
-  onNavigate: (path: string) => void
-}
+export function FileView() {
+  const location = useLocation()
+  const { lastFileChangePath, lastFileChangeAt } = useTree()
 
-export function FileView({ path, content, onNavigate }: FileViewProps) {
+  // Derive the relative path from the URL: /file/some/path.md → some/path.md
+  const path = location.pathname.replace(/^\/file\//, '')
+
+  const [content, setContent] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const savedScrollRef = useRef<number>(0)
 
-  // Save scroll position before path changes
+  // Fetch file content whenever the path changes
   useEffect(() => {
+    if (!path) return
+
+    let cancelled = false
+    setContent(null)
+    setError(null)
+
+    fetchFile(path)
+      .then((data) => {
+        if (!cancelled) setContent(data.content)
+      })
+      .catch((e) => {
+        if (!cancelled) setError(`Error: could not load file.\n${e}`)
+      })
+
     return () => {
-      savedScrollRef.current = scrollRef.current?.scrollTop ?? 0
+      cancelled = true
     }
   }, [path])
 
-  // Restore scroll position after path changes
+  // Re-fetch when SSE signals that this file changed
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0
+    if (!lastFileChangePath || !path) return
+    if (lastFileChangePath.endsWith(path)) {
+      fetchFile(path)
+        .then((data) => setContent(data.content))
+        .catch(() => {})
     }
+  }, [lastFileChangePath, lastFileChangeAt, path])
+
+  // Scroll to top on path change
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [path])
+
+  if (!path) return null
+  if (error)
+    return (
+      <div className="text-destructive text-sm whitespace-pre-wrap">
+        {error}
+      </div>
+    )
+  if (content === null) return <LoadingState message="Loading file…" />
 
   const segments = path.split('/').filter(Boolean)
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4 flex-wrap">
-        {segments.map((seg, i) => {
-          const isLast = i === segments.length - 1
-          const segPath = segments.slice(0, i + 1).join('/')
-          return (
-            <span key={segPath} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3.5 w-3.5" />}
-              {isLast ? (
-                <span className="text-foreground font-medium">{seg}</span>
-              ) : (
-                <button
-                  onClick={() => onNavigate(segPath)}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {seg}
-                </button>
-              )}
-            </span>
-          )
-        })}
-      </nav>
+      <Breadcrumb segments={segments} className="mb-4" />
 
       <div className="max-w-2xl">
         <MarkdownRenderer content={content} />

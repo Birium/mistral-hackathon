@@ -1,20 +1,17 @@
 """Read tool — retrieve file content from the vault with line numbers."""
 
-from typing import Optional
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.read import read as _read_impl
 
 
-def read(paths: list[str], head: Optional[int] = None, tail: Optional[int] = None) -> str:
-    """Read one or more files or folders from the vault, with line numbers.
+def read(paths: list[str]) -> str:
+    """Read files from the vault with line numbers. Supports exact paths, directories, and glob patterns.
 
     Args:
-        paths: List of vault paths. Each path may be a file or a folder (folder = all direct files, non-recursive).
-        head: Approximate token budget from the start of each file.
-        tail: Approximate token budget from the end of each file. head and tail are mutually exclusive.
+        paths: Vault paths to read. Each entry can be an exact file, a directory (returns all direct files non-recursively), or a glob pattern (e.g. 'projects/*/state.md').
     """
     try:
-        return _read_impl(paths=paths, head=head, tail=tail)
+        return _read_impl(paths=paths)
     except ValueError as e:
         return f"[READ ERROR] {e}"
     except (OSError, PermissionError) as e:
@@ -26,43 +23,59 @@ ReadTool = BaseTool(read)
 
 READ_TOOL_PROMPT = """\
 <read-tool>
-Read is your default tool for retrieving file content. When you know where the
-information lives — because the overview identified the project, or the vault-structure
-showed the file — read it directly. Do not search first. Read is always the simpler
-and more reliable path when the destination is known.
+Read is the targeted retrieval tool. It loads file contents with line numbers when you
+know where the information lives — the overview identified the project, the vault-structure
+confirmed the file exists, or a previous search pointed you there.
 
-**Token budget — always check before reading.**
-Your vault-structure and tree tool shows token counts for every file. Consult them before calling read.
-A rough guide:
-- Under 5k tokens: read whole, no concern.
-- 5k–20k tokens: read whole if directly relevant, use head/tail if you only need
-  a specific section (recent entries, current status).
-- 20k–50k tokens: use head or tail. Read whole only if you have strong reason to believe
-  the entire file is needed.
-- Above 50k tokens: never read whole. Use head for newest-first files (changelogs),
-  tail for bottom-appended files (tasks), or rely on search chunks to locate the
-  relevant section first.
+<path-types>
+Three types, freely combinable in a single `paths` list:
 
-Never load more than roughly 50k tokens of content across a single read call
-without a deliberate reason. If you need multiple large files, split into separate
-read calls across loop iterations so you can evaluate each result before proceeding.
+Literal path — one exact file.
+`read(["projects/startup-x/state.md"])`
 
-**head and tail parameters.**
-`head=N` returns approximately N tokens from the start of the file.
-`tail=N` returns approximately N tokens from the end.
-They are mutually exclusive. Use head on changelogs (newest-first, recent entries at top).
-Use tail on files where new content is appended at the bottom.
+Directory — every direct file at that level, non-recursive. Subfolders are not entered.
+`read(["projects/startup-x/"])` → description, state, tasks, changelog (not bucket/).
+`read(["projects/startup-x/bucket/"])` → every file in that bucket.
 
-**Reading directories.**
-Pass a directory path to get all direct files at that level, non-recursively:
-`read(["vault/projects/startup-x/"])` returns description, state, tasks, changelog —
-but not the bucket sub-directory. To read bucket contents:
-`read(["vault/projects/startup-x/bucket/"])`.
+Glob pattern — wildcard expansion across the vault. One call scans the same file type
+across every project.
 
-**Batching multiple files.**
-Read multiple files in a single call when they are all needed and their combined
-token count stays within budget:
-`read(["vault/projects/startup-x/state.md", "vault/projects/appart-search/state.md"])`.
-Batching is efficient but respect the total — check each file's token count in
-vault-structure before combining them.
+Core patterns:
+- `projects/*/state.md` — every project's current status
+- `projects/*/description.md` — every project's identity and scope
+- `projects/*/changelog.md` — every project's history
+- `projects/*/tasks.md` — every project's active tasks
+- `projects/*/bucket/*` — all project bucket files
+</path-types>
+
+<combined-reads>
+Combine paths for multi-source reads in a single call:
+
+Compare two projects:
+`read(["projects/startup-x/state.md", "projects/appart-search/state.md"])`
+
+All changelogs everywhere:
+`read(["projects/*/changelog.md", "changelog.md"])`
+
+Full project context:
+`read(["projects/startup-x/", "projects/startup-x/bucket/"])`
+
+Cross-vault status sweep:
+`read(["projects/*/state.md", "tasks.md"])`
+
+Multiple paths cost one tool invocation instead of many.
+</combined-reads>
+
+<token-guidance>
+Load generously. Knowledge tasks benefit from rich context — more information means
+better reasoning, not worse.
+
+Under 150k tokens of active context: read without hesitation. A 30k changelog, a 15k
+description, five 3k state files in one call — all fine. Do not agonize over whether
+a 10k file is "worth" reading. If it might be relevant, read it.
+
+Above 150k tokens: be selective. Target specific files rather than globbing everything.
+Use search to locate the exact section you need in very large files. Check token counts
+in your vault-structure before reading large files.
+</token-guidance>
 </read-tool>"""
