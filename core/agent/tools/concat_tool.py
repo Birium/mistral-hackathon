@@ -1,3 +1,24 @@
+"""Concat tool — assemble files for final output."""
+
+from agent.tools.tool_base import BaseTool
+from functions.concat import concat as _concat_impl
+
+
+def concat(files: list[dict]) -> str:
+    """Assemble an ordered list of vault files into a single structured markdown document.
+
+    Args:
+        files: Ordered list of file objects. Each object must have a 'path' (str) and optional 'lines' (str like 'N-M').
+    """
+    try:
+        return _concat_impl(files=files)
+    except Exception as e:
+        return f"[CONCAT ERROR] Unexpected error: {e}"
+
+
+ConcatTool = BaseTool(concat)
+
+
 CONCAT_TOOL_PROMPT = """\
 <concat-tool>
 Concat is your finalization tool. It assembles an ordered list of vault files into

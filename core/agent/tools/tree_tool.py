@@ -1,3 +1,25 @@
+"""Tree tool — explore vault structure."""
+
+from typing import Optional
+from agent.tools.tool_base import BaseTool
+from functions.utils import _resolve_path
+from functions.tree import get_tree as _tree_impl
+
+
+def tree(path: str = "", depth: Optional[int] = None) -> str:
+    """Explore the structure of the vault with token counts and timestamps.
+
+    Args:
+        path: Vault path to scan (e.g. 'vault/', 'vault/projects/startup-x/'). Defaults to the vault root.
+        depth: Levels to unfold. None = unlimited, 0 = root only.
+    """
+    resolved = _resolve_path(path)
+    return _tree_impl(path=str(resolved), depth=depth)
+
+
+TreeTool = BaseTool(tree)
+
+
 TREE_TOOL_PROMPT = """\
 <tree-tool>
 Use tree to explore sub-directory contents.

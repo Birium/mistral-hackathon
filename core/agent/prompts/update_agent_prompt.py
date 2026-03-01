@@ -1,12 +1,12 @@
 from .env_prompt import ENVIRONMENT_PROMPT, AGENTIC_MODEL_PROMPT, INITIAL_CONTEXT_PROMPT
-from .tools_prompts.search_prompt import SEARCH_TOOL_PROMPT
-from .tools_prompts.read_prompt import READ_TOOL_PROMPT
-from .tools_prompts.tree_prompt import TREE_TOOL_PROMPT
-from .tools_prompts.write_prompt import WRITE_TOOL_PROMPT
-from .tools_prompts.edit_prompt import EDIT_TOOL_PROMPT
-from .tools_prompts.append_prompt import APPEND_TOOL_PROMPT
-from .tools_prompts.move_prompt import MOVE_TOOL_PROMPT
-from .tools_prompts.delete_prompt import DELETE_TOOL_PROMPT
+from agent.tools.search_tool import SEARCH_TOOL_PROMPT
+from agent.tools.read_tool import READ_TOOL_PROMPT
+from agent.tools.tree_tool import TREE_TOOL_PROMPT
+from agent.tools.write_tool import WRITE_TOOL_PROMPT
+from agent.tools.edit_tool import EDIT_TOOL_PROMPT
+from agent.tools.append_tool import APPEND_TOOL_PROMPT
+from agent.tools.move_tool import MOVE_TOOL_PROMPT
+from agent.tools.delete_tool import DELETE_TOOL_PROMPT
 
 UPDATE_SYSTEM_PROMPT = f"""\
 <instructions>

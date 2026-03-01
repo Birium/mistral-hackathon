@@ -1,8 +1,8 @@
 from .env_prompt import ENVIRONMENT_PROMPT, AGENTIC_MODEL_PROMPT, INITIAL_CONTEXT_PROMPT
-from .tools_prompts.search_prompt import SEARCH_TOOL_PROMPT
-from .tools_prompts.read_prompt import READ_TOOL_PROMPT
-from .tools_prompts.tree_prompt import TREE_TOOL_PROMPT
-from .tools_prompts.concat_prompt import CONCAT_TOOL_PROMPT
+from agent.tools.search_tool import SEARCH_TOOL_PROMPT
+from agent.tools.read_tool import READ_TOOL_PROMPT
+from agent.tools.tree_tool import TREE_TOOL_PROMPT
+from agent.tools.concat_tool import CONCAT_TOOL_PROMPT
 
 SEARCH_SYSTEM_PROMPT = f"""\
 <instructions>
@@ -66,10 +66,6 @@ reflexively read every file that appears in search results.
 need, iterate. Try different terms, switch modes, narrow or broaden scope. Two or three
 passes with different angles is normal. What is not acceptable is giving up after one
 empty search and returning a thin answer.
-
-**Know when you have enough.** When every claim you would make in your overview is
-backed by something you actually read or found — stop. More context does not always
-mean a better answer.
 </search-strategy>
 
 <rules>

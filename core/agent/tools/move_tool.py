@@ -1,3 +1,27 @@
+"""Move tool — relocate files or folders."""
+
+from agent.tools.tool_base import BaseTool
+from functions.move import move as _move_impl
+
+
+def move(from_path: str, to_path: str) -> str:
+    """Move a file or folder to a new location within the vault.
+
+    Args:
+        from_path: Vault source path of the file or folder to move.
+        to_path: Vault destination path. Parent directories created if needed.
+    """
+    try:
+        return _move_impl(from_path=from_path, to_path=to_path)
+    except (ValueError, FileNotFoundError) as e:
+        return f"[MOVE ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[MOVE ERROR] Could not move '{from_path}': {e}"
+
+
+MoveTool = BaseTool(move)
+
+
 MOVE_TOOL_PROMPT = """\
 <move-tool>
 Move relocates a file or directory from one path to another. The content is untouched —

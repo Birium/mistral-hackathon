@@ -2,7 +2,11 @@ from agent.agent.base_agent import BaseAgent
 from agent.agent.context import load_vault_context
 from agent.llm.config import DEFAULT_MODEL
 from agent.prompts.search_agent_prompt import SEARCH_SYSTEM_PROMPT
-from agent.tools.tools import SEARCH_TOOLS
+
+from agent.tools.tree_tool import TreeTool
+from agent.tools.read_tool import ReadTool
+from agent.tools.search_tool import SearchTool
+from agent.tools.concat_tool import ConcatTool
 
 
 class SearchAgent(BaseAgent):
@@ -10,7 +14,7 @@ class SearchAgent(BaseAgent):
         super().__init__(
             model=DEFAULT_MODEL,
             system_prompt=SEARCH_SYSTEM_PROMPT,
-            tools=SEARCH_TOOLS,
+            tools=[TreeTool, ReadTool, SearchTool, ConcatTool],
         )
 
     def process(self, query: str):

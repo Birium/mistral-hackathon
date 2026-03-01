@@ -1,3 +1,29 @@
+"""Read tool — retrieve file content from the vault with line numbers."""
+
+from typing import Optional
+from agent.tools.tool_base import BaseTool
+from functions.read import read as _read_impl
+
+
+def read(paths: list[str], head: Optional[int] = None, tail: Optional[int] = None) -> str:
+    """Read one or more files or folders from the vault, with line numbers.
+
+    Args:
+        paths: List of vault paths. Each path may be a file or a folder (folder = all direct files, non-recursive).
+        head: Approximate token budget from the start of each file.
+        tail: Approximate token budget from the end of each file. head and tail are mutually exclusive.
+    """
+    try:
+        return _read_impl(paths=paths, head=head, tail=tail)
+    except ValueError as e:
+        return f"[READ ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[READ ERROR] {e}"
+
+
+ReadTool = BaseTool(read)
+
+
 READ_TOOL_PROMPT = """\
 <read-tool>
 Read is your default tool for retrieving file content. When you know where the

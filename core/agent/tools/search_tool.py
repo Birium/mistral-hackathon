@@ -1,3 +1,50 @@
+"""Search tool — BM25 and semantic search over the indexed vault."""
+
+import asyncio
+import logging
+from typing import Optional, List
+
+from agent.tools.tool_base import BaseTool
+from functions.search import search as _search_impl
+
+logger = logging.getLogger(__name__)
+
+
+def search(
+    queries: List[str],
+    mode: str = "fast",
+    scopes: Optional[List[str]] = None,
+) -> str:
+    """Search the indexed vault via QMD (BM25 or full semantic pipeline).
+
+    Args:
+        queries: One or more search queries to run simultaneously.
+        mode: 'fast' for BM25 term matching, 'deep' for full semantic pipeline.
+        scopes: Optional list of glob patterns to restrict the search scope.
+    """
+    try:
+        results = asyncio.run(_search_impl(queries=queries, mode=mode, scopes=scopes))
+    except Exception as e:
+        return f"[SEARCH ERROR] {e}"
+
+    if not results:
+        return f"No results found for: {queries}"
+
+    logger.info(
+        f"[search] returning {len(results)} results for queries={queries} with scopes={scopes}"
+    )
+
+    lines = [f"## Search results for `{queries}`\n"]
+    for r in results:
+        lines.append(f"### {r.path} (score: {r.score}, lines: {r.lines})")
+        lines.append(f"```\n{r.chunk_with_context}\n```\n")
+
+    return "\n".join(lines)
+
+
+SearchTool = BaseTool(search)
+
+
 SEARCH_TOOL_PROMPT = """\
 <search-tool>
 Search is your discovery tool for cases where you don't know exactly which file contains

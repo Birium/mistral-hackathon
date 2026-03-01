@@ -6,7 +6,8 @@ Includes today's date, vault overview, vault structure (tree), and user profile.
 """
 
 from datetime import datetime
-from agent.tools.tools import read, tree
+from agent.tools.read_tool import read
+from agent.tools.tree_tool import tree
 
 
 VAULT_CONTEXT_TEMPLATE = """<date>{date}</date>

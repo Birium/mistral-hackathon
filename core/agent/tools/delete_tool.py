@@ -1,3 +1,26 @@
+"""Delete tool — permanently remove files or folders."""
+
+from agent.tools.tool_base import BaseTool
+from functions.delete import delete as _delete_impl
+
+
+def delete(path: str) -> str:
+    """Permanently delete a file or folder (recursive) from the vault.
+
+    Args:
+        path: Vault path of the file or folder to delete.
+    """
+    try:
+        return _delete_impl(path=path)
+    except ValueError as e:
+        return f"[DELETE ERROR] {e}"
+    except (OSError, PermissionError) as e:
+        return f"[DELETE ERROR] Could not delete '{path}': {e}"
+
+
+DeleteTool = BaseTool(delete)
+
+
 DELETE_TOOL_PROMPT = """\
 <delete-tool>
 Delete permanently removes a file or an entire directory recursively. There is no
