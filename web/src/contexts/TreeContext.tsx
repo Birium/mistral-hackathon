@@ -1,10 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { TreeNode } from '@/types'
 import { fetchTree } from '@/api'
 import { useSSE } from '@/hooks/useSSE'
 
 interface TreeContextValue {
   treeData: TreeNode | null
+  /** Top-level children as a flat array — convenient for tree rendering & folder lookup */
+  tree: TreeNode[]
   inboxItems: TreeNode[]
   inboxCount: number
   refetchTree: () => Promise<void>
@@ -41,13 +43,23 @@ export function TreeProvider({ children }: { children: ReactNode }) {
     },
   })
 
+  const tree = treeData?.children ?? []
+
   const inboxItems =
-    treeData?.children?.find((n) => n.name === 'inbox/' || n.name === 'inbox')?.children ?? []
+    tree.find((n) => n.name === 'inbox/' || n.name === 'inbox')?.children ?? []
   const inboxCount = inboxItems.length
 
   return (
     <TreeContext.Provider
-      value={{ treeData, inboxItems, inboxCount, refetchTree, lastFileChangePath, lastFileChangeAt }}
+      value={{
+        treeData,
+        tree,
+        inboxItems,
+        inboxCount,
+        refetchTree,
+        lastFileChangePath,
+        lastFileChangeAt,
+      }}
     >
       {children}
     </TreeContext.Provider>

@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { useTree } from '@/contexts/TreeContext'
-import { useFileNavigation } from '@/hooks/useFileNavigation'
 import { fetchFile } from '@/api'
 
 export function FileView() {
   const location = useLocation()
-  const navigateToFile = useFileNavigation()
+  const navigate = useNavigate()
   const { lastFileChangePath, lastFileChangeAt } = useTree()
 
   // Derive the relative path from the URL: /file/some/path.md → some/path.md
@@ -56,14 +55,19 @@ export function FileView() {
   }, [path])
 
   if (!path) return null
-  if (error) return <div className="text-destructive text-sm whitespace-pre-wrap">{error}</div>
+  if (error)
+    return (
+      <div className="text-destructive text-sm whitespace-pre-wrap">
+        {error}
+      </div>
+    )
   if (content === null) return <LoadingState message="Loading file…" />
 
   const segments = path.split('/').filter(Boolean)
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto">
-      {/* Breadcrumb */}
+      {/* Breadcrumb — folder segments navigate to /folder/, last segment is static */}
       <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4 flex-wrap">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1
@@ -75,7 +79,7 @@ export function FileView() {
                 <span className="text-foreground font-medium">{seg}</span>
               ) : (
                 <button
-                  onClick={() => navigateToFile(segPath)}
+                  onClick={() => navigate(`/folder/${segPath}`)}
                   className="hover:text-foreground transition-colors"
                 >
                   {seg}

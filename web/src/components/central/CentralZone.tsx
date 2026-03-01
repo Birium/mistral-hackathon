@@ -6,6 +6,7 @@ import { FileView } from './FileView'
 import { ActivityView } from './ActivityView'
 import { InboxListView } from './InboxListView'
 import { InboxDetailView } from './InboxDetailView'
+import { FolderView } from './FolderView'
 
 export function CentralZone() {
   const {
@@ -27,6 +28,7 @@ export function CentralZone() {
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/file/*" element={<FileView />} />
+            <Route path="/folder/*" element={<FolderView />} />
             <Route path="/activity" element={<ActivityView />} />
             <Route path="/inbox" element={<InboxListView />} />
             <Route path="/inbox/:name" element={<InboxDetailView />} />
