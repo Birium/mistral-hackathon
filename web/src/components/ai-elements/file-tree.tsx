@@ -110,11 +110,13 @@ const FileTreeFolderContext = createContext<FileTreeFolderContextType>({
 export type FileTreeFolderProps = HTMLAttributes<HTMLDivElement> & {
   path: string;
   name: string;
+  label?: ReactNode;
 };
 
 export const FileTreeFolder = ({
   path,
   name,
+  label,
   className,
   children,
   ...props
@@ -169,6 +171,7 @@ export const FileTreeFolder = ({
                 )}
               </FileTreeIcon>
               <FileTreeName>{name}</FileTreeName>
+              {label}
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -194,12 +197,14 @@ export type FileTreeFileProps = HTMLAttributes<HTMLDivElement> & {
   path: string;
   name: string;
   icon?: ReactNode;
+  label?: ReactNode;
 };
 
 export const FileTreeFile = ({
   path,
   name,
   icon,
+  label,
   className,
   children,
   ...props
@@ -244,6 +249,7 @@ export const FileTreeFile = ({
               {icon ?? <FileIcon className="size-4 text-muted-foreground" />}
             </FileTreeIcon>
             <FileTreeName>{name}</FileTreeName>
+            {label}
           </>
         )}
       </div>

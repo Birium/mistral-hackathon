@@ -1,6 +1,6 @@
 import { Separator } from '@/components/ui/separator'
 import type { TreeNode } from '@/types'
-import { FileTree } from './FileTree'
+import { AiFileTree } from './AiFileTree'
 import { InboxButton } from './InboxButton'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -34,9 +34,8 @@ export function Sidebar({
           </p>
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         </div>
-        <FileTree
+        <AiFileTree
           nodes={children}
-          depth={0}
           selectedPath={selectedPath}
           onSelectFile={onSelectFile}
         />
