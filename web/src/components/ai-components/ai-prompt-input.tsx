@@ -38,8 +38,8 @@ export function AIPromptInput({
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-center items-center gap-2 px-4 pb-4 pt-12 bg-background">
-      <div className="w-full max-w-2xl pointer-events-auto flex flex-col gap-2">
+    <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-center items-center gap-2 px-4 pb-4 pt-12">
+      <div className="w-full max-w-2xl pointer-events-auto flex flex-col gap-2 bg-background">
         {chatMode === 'answering' && answeringRef && (
           <AnsweringBanner answeringRef={answeringRef} onCancel={onCancelReply} />
         )}

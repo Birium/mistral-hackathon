@@ -62,7 +62,7 @@ export function FileView() {
   if (content === null) return <LoadingState message="Loading file…" />
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto">
+    <div ref={scrollRef} className="h-full overflow-y-auto bg-primary/2 px-10 py-5 rounded-4xl">
       <div className="max-w-2xl">
         <MarkdownRenderer content={content} />
       </div>
