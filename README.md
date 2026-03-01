@@ -8,7 +8,7 @@
 
 Claude remembers. Cursor remembers. But their memory is locked inside their own silo.
 Switch tools, start over. Use two in parallel, they share nothing.
-Your memory doesn't belong to you — and it never follows you.
+Your memory doesn't belong to you and it never follows you.
 
 Knower is a **local, portable memory service** that decouples memory from the tool.
 One vault. Every agent. One call away.
@@ -17,7 +17,7 @@ One vault. Every agent. One call away.
 
 </div>
 
-**Quick start** — try it in 60 seconds:
+## **Quick start**
 
 ```bash
 git clone git@github.com:Birium/mistral-hackathon.git && cd knower
@@ -35,7 +35,7 @@ knower web                          # http://localhost:8000 - Interact with your
 
 ### You re-explain yourself. Every. Single. Session.
 
-You open Mistral. You need help with your project. So you explain the stack, the constraints, the decisions you made two weeks ago, the thing you tried and abandoned. You do it again in Claude. Again in Gemini. Every session starts from zero — because no tool remembers what you already told another one.
+You open Mistral. You need help with your project. So you explain the stack, the constraints, the decisions you made two weeks ago, the thing you tried and abandoned. You do it again in Claude. Again in Gemini. Every session starts from zero because no tool remembers what you already told another one.
 
 This is not a minor annoyance. It's your **daily workflow**: rebuilding context that already exists somewhere, just not _here_.
 
@@ -47,11 +47,11 @@ Claude has memory. Cursor has rules. Knower has a vault. None of them talk to ea
 
 ![The Silo Problem](docs/silo-problem.svg)
 
-> Your memory is locked — in silos that don't belong to you.
+> Your memory is locked in silos that don't belong to you.
 
 ### Context rots. Nobody maintains it.
 
-You write some rules in a file. Ten lines. Clear, useful. Three sprints later it's 200 lines — half of it outdated, half of it contradicting decisions made since. Nobody fixes it. Nobody knows which half is wrong.
+You write some rules in a file. Ten lines. Clear, useful. Three sprints later it's 200 lines. Half of it outdated, half of it contradicting decisions made since. Nobody fixes it. Nobody knows which half is wrong.
 
 Every developer who works with AI agents knows this: **context rots**. Maintaining it manually is a second job that nobody actually does.
 
@@ -71,7 +71,9 @@ When an agent retrieves context using its own tools — `grep`, `read`, `tree` �
 
 Three independent research results, same conclusion: loading memory directly into the agent's context window is **quantifiably damaging to reasoning quality**. The smarter the task, the worse this gets.
 
-This is why Knower is a **separate process**. The agent calls Knower, receives a clean Markdown chunk back, and keeps its context window free for the actual work. It's not a convenience — it's an architectural decision grounded in data.
+This is why Knower is a **separate process**. The agent calls Knower, receives a clean Markdown chunk back, and keeps its context window free for the actual work.
+
+Want to learn more about those papers ? [Read the research papers](https://github.com/Birium/mistral-hackathon?tab=readme-ov-file#the-research)
 
 ---
 
@@ -90,13 +92,11 @@ The problem isn't that memory doesn't exist. It's that every memory is a silo ow
 
 These are the closest things to Knower in the current landscape, and they're worth addressing directly.
 
-**OpenClaw** is a memory agent for code — file reading, structure navigation, project context. It does useful things. **claude-mem** uses Claude Code hooks to persist context across sessions. Also useful.
+**OpenClaw** is a memory agent for code (file reading, structure navigation, project context). It does useful things. **claude-mem** uses Claude Code hooks to persist context across sessions. Also useful.
 
-The problem they share is the same: they're **locked in their ecosystem**. OpenClaw works inside the OpenClaw ecosystem. claude-mem works via Claude Code hooks — exclusively. Switch to Mistral Vibe for a session, or run a custom agent for a batch job, and neither helps you.
+The problem they share is the same. They're **locked in their ecosystem**. OpenClaw works inside the OpenClaw ecosystem. claude-mem works via Claude Code hooks — exclusively. Switch to Mistral Vibe for a session, or run a custom agent for a batch job, and neither helps you.
 
 Knower is architecturally different in one precise way: it's a **standalone service**, not a plugin or a feature of any existing tool. It exposes MCP and REST. Any MCP-compatible agent can call it — Mistral Vibe, Claude Code, Open Code, a custom script, a homemade agent. Knower doesn't know which client is calling and doesn't care. The vault is the single source of truth. The client is irrelevant.
-
-> Nobody has built a memory that is **yours**, **local**, and **connected everywhere**. Until now.
 
 ---
 
@@ -110,25 +110,16 @@ Tony Stark walks out of a meeting and says:
 
 Integrated. Structured. Everything else updated accordingly. Jarvis doesn't ask _"which project was that again?"_ — he has the context.
 
-That's the interaction model Knower is built around. You send information in any form. It gets structured, routed, and stored. When you need context — from any tool — it's there, complete, ready.
+That's the interaction model Knower is built around. You send information in any form. It gets structured, routed, and stored. When you need context, from any tool, it's there, complete and ready.
 
 ### Action memory, not passive memory
 
 Knower is not a preferences store. It doesn't save snippets or surface recall suggestions.
 
-It maintains a **structured, complete memory** — decisions, current state, history, tasks — that enables any AI calling it to act with full context. The difference:
+It maintains a **structured, complete memory** that enables any AI calling it to act with full context. The difference:
 
 - **Passive memory** (Claude memory, ChatGPT memory): stores preferences and conversation fragments
 - **Action memory** (Knower): maintains a living, structured record that an agent can reason from and act on
-
-### Two operations
-
-```
-SEND anything  →  Knower structures it into your vault
-ASK  anything  →  Knower returns relevant Markdown
-```
-
-Knower is a separate service — not a plugin, not a feature. It sits alongside your tools. You call it when you need it, from wherever you are.
 
 ### Why a separate process
 
@@ -144,11 +135,11 @@ These are the three things the demo will show. They're worth understanding befor
 
 ### 1. You send raw input — it structures itself
 
-You drop a transcribed voice note, a quick message, an email. You don't format anything, you don't decide where it goes. The system understands what it is, updates the relevant project state, adds tasks, logs decisions. The file tree updates in real time in front of you via SSE. It's not a black box — you watch the work happen.
+You drop a transcribed voice note, a quick message, an email. You don't format anything, you don't decide where it goes. The system understands what it is, updates the relevant project state, adds tasks, logs decisions. The file tree updates in real time in front of you. It's not a black box, you can watch the work happen.
 
 ### 2. You ask a question — you get real context
 
-_"Where are we on project X?"_ or _"Why did we abandon that idea?"_ The system doesn't give you generalities. It traverses your memory, assembles the relevant pieces — decisions, current state, tasks — and returns precise context drawn entirely from what you gave it: dated decisions, changelog entries, a live state file.
+_"Where are we on project X?"_ or _"Why did we abandon that idea?"_ The system doesn't give you generalities. It traverses your memory, assembles the relevant pieces and returns precise context drawn entirely from what you gave it: dated decisions, changelog entries, a live state file.
 
 ### 3. The system doubts — it shows you everything
 
