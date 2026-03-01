@@ -51,7 +51,7 @@ knower config show                # print current config
 
 ```bash
 knower start           # starts core in background
-open http://localhost:8000
+knower web             # starts frontend to interact with vault
 ```
 
 ### Development mode

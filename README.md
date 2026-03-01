@@ -23,7 +23,8 @@ One vault. Every agent. One call away.
 git clone git@github.com:Birium/mistral-hackathon.git && cd knower
 ./install.sh                        # ~2 GB model download, one-time
 knower config vault ~/my-vault
-knower start                        # http://localhost:8000
+knower start                        # Launch the Knower Core
+knower web                          # http://localhost:8000 - Interact with your vault
 ```
 
 → Full install guide, MCP integrations, and CLI reference: **[INSTALL.md](INSTALL.md)**
