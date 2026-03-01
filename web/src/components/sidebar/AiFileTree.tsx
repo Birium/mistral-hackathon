@@ -11,11 +11,6 @@ interface AiFileTreeProps {
   onSelectFile: (path: string) => void
 }
 
-function TokenBadge({ tokens }: { tokens: number }) {
-  if (tokens <= 0) return null
-  return <span className="ml-auto text-xs text-muted-foreground shrink-0">{tokens}</span>
-}
-
 function renderNodes(nodes: TreeNode[]): React.ReactNode {
   return nodes.map((node) => {
     if (node.type === 'directory') {
@@ -24,7 +19,6 @@ function renderNodes(nodes: TreeNode[]): React.ReactNode {
           key={node.path}
           path={node.path}
           name={node.name}
-          label={<TokenBadge tokens={node.tokens} />}
         >
           {renderNodes(node.children ?? [])}
         </FileTreeFolder>
@@ -35,7 +29,6 @@ function renderNodes(nodes: TreeNode[]): React.ReactNode {
         key={node.path}
         path={node.path}
         name={node.name}
-        label={<TokenBadge tokens={node.tokens} />}
       />
     )
   })
