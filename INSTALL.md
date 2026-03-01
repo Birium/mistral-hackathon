@@ -29,7 +29,7 @@ The installer runs the following steps:
 2. Installs QMD globally — `npm install -g @tobilu/qmd`
 3. Downloads QMD models (~2 GB, one-time, cached to `~/.cache/qmd/models/`)
 4. Creates Python venv in `core/.venv`
-5. Writes config to `~/.config/knower/config`
+5. Writes config to `~/.config/knower/config` and asks you for some settings
 6. Symlinks `knower` CLI to `/usr/local/bin`
 
 Subsequent boots skip step 3 entirely — models are already cached.
@@ -39,7 +39,6 @@ Subsequent boots skip step 3 entirely — models are already cached.
 ## Configure
 
 ```bash
-knower config vault ~/my-vault    # set vault location (created if it doesn't exist)
 knower config show                # print current config
 ```
 

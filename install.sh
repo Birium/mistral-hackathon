@@ -88,14 +88,81 @@ ok "Runtime dirs ready"
 # ── 7. Write KNOWER_HOME to config (preserve existing values) ──────────────
 CONFIG="$HOME/.config/knower/config"
 
-if grep -q "^KNOWER_HOME=" "$CONFIG" 2>/dev/null; then
-  sed -i '' "s|^KNOWER_HOME=.*|KNOWER_HOME=$KNOWER_HOME|" "$CONFIG"
+_config_set() {
+  local key=$1 val=$2
+  if grep -q "^${key}=" "$CONFIG" 2>/dev/null; then
+    sed -i '' "s|^${key}=.*|${key}=${val}|" "$CONFIG"
+  else
+    echo "${key}=${val}" >> "$CONFIG"
+  fi
+}
+
+_config_get() {
+  grep "^${1}=" "$CONFIG" 2>/dev/null | cut -d= -f2-
+}
+
+touch "$CONFIG"
+chmod 600 "$CONFIG"   # API key lives here now
+
+_config_set KNOWER_HOME "$KNOWER_HOME"
+grep -q "^CORE_PORT=" "$CONFIG" 2>/dev/null || echo "CORE_PORT=8000" >> "$CONFIG"
+
+ok "Config written → $CONFIG"
+
+# ── 7b. Collect VAULT_PATH ────────────────────────────────────────────────
+EXISTING_VAULT=$(_config_get VAULT_PATH)
+if [[ -n "$EXISTING_VAULT" ]]; then
+  ok "VAULT_PATH already set → $EXISTING_VAULT"
 else
-  echo "KNOWER_HOME=$KNOWER_HOME" >> "$CONFIG"
+  while true; do
+    read -r -p "  ➜  Vault path (where your Markdown files will live) [~/knower-vault]: " VAULT_INPUT
+    VAULT_INPUT="${VAULT_INPUT:-$HOME/knower-vault}"
+    VAULT_INPUT="${VAULT_INPUT/#\~/$HOME}"   # expand ~
+    if [[ "$VAULT_INPUT" == /* ]]; then
+      mkdir -p "$VAULT_INPUT"
+      _config_set VAULT_PATH "$VAULT_INPUT"
+      ok "VAULT_PATH set → $VAULT_INPUT"
+      break
+    else
+      echo "  ❌ Please enter an absolute path."
+    fi
+  done
 fi
 
-if ! grep -q "^CORE_PORT=" "$CONFIG" 2>/dev/null; then
-  echo "CORE_PORT=8000" >> "$CONFIG"
+# ── 7c. Collect OPENROUTER_API_KEY ────────────────────────────────────────
+EXISTING_KEY=$(_config_get OPENROUTER_API_KEY)
+if [[ -n "$EXISTING_KEY" ]]; then
+  ok "OPENROUTER_API_KEY already set (sk-or-…${EXISTING_KEY: -4})"
+else
+  while true; do
+    read -r -s -p "  ➜  OpenRouter API key (input hidden): " KEY_INPUT
+    echo ""
+    if [[ "$KEY_INPUT" == sk-or-* ]]; then
+      _config_set OPENROUTER_API_KEY "$KEY_INPUT"
+      ok "OPENROUTER_API_KEY saved"
+      break
+    else
+      echo "  ❌ Key must start with 'sk-or-'. Get one at https://openrouter.ai/keys"
+    fi
+  done
+fi
+
+# ── 7d. Collect ELEVENLABS_API_KEY ────────────────────────────────────────────
+EXISTING_KEY=$(_config_get ELEVENLABS_API_KEY)
+if [[ -n "$EXISTING_KEY" ]]; then
+  ok "ELEVENLABS_API_KEY already set (sk-…${EXISTING_KEY: -4})"
+else
+  while true; do
+    read -r -s -p "  ➜  OpenAI API key (input hidden): " KEY_INPUT
+    echo ""
+    if [[ "$KEY_INPUT" == sk-* ]]; then
+      _config_set ELEVENLABS_API_KEY "$KEY_INPUT"
+      ok "ELEVENLABS_API_KEY saved"
+      break
+    else
+      echo "  ❌ Key must start with 'sk-'. Get one at https://elevenlabs.io/app/developers/api-keys"
+    fi
+  done
 fi
 
 ok "Config written → $CONFIG"
@@ -108,8 +175,8 @@ ok "CLI linked"
 
 # ── Done ───────────────────────────────────────────────────────────────────
 echo ""
-echo "✅ Knower installed. Next steps:"
+echo "✅ Knower installed."
 echo ""
-echo "   knower config vault ~/my-vault   # set your vault path"
-echo "   knower start                     # start knower"
+echo "   knower dev           # start knower in dev mode"
+echo "   knower start         # start in prod mode"
 echo ""
