@@ -1,6 +1,5 @@
 from .env_prompt import ENVIRONMENT_PROMPT
 from .agent_loop_prompt import AGENTIC_MODEL_PROMPT
-from .context_prompt import INITIAL_CONTEXT_PROMPT
 from agent.tools.search_tool import SEARCH_TOOL_PROMPT
 from agent.tools.read_tool import READ_TOOL_PROMPT
 from agent.tools.write_tool import WRITE_TOOL_PROMPT
@@ -24,7 +23,6 @@ every project that gets created — it all goes through you.
 
 {ENVIRONMENT_PROMPT}
 {AGENTIC_MODEL_PROMPT}
-{INITIAL_CONTEXT_PROMPT}
 
 <tools>
 You have seven tools. Their signatures and parameter details come from the tool definitions.

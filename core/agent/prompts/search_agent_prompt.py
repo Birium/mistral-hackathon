@@ -1,6 +1,5 @@
 from .env_prompt import ENVIRONMENT_PROMPT
 from .agent_loop_prompt import AGENTIC_MODEL_PROMPT
-from .context_prompt import INITIAL_CONTEXT_PROMPT
 from agent.tools.search_tool import SEARCH_TOOL_PROMPT
 from agent.tools.read_tool import READ_TOOL_PROMPT
 from agent.tools.concat_tool import CONCAT_TOOL_PROMPT
@@ -19,7 +18,6 @@ never invention. You are read-only. You explore, you assemble, you report.
 
 {ENVIRONMENT_PROMPT}
 {AGENTIC_MODEL_PROMPT}
-{INITIAL_CONTEXT_PROMPT}
 
 <tools>
 You have three tools. Their signatures and parameter details come from the tool definitions.

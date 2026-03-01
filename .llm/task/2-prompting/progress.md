@@ -30,3 +30,22 @@
     -   **Systèmes Prompts :** Retrait de l'injection de `TREE_TOOL_PROMPT` dans `SEARCH_SYSTEM_PROMPT` et `UPDATE_SYSTEM_PROMPT`.
     -   **Context Prompt :** Nettoyage des mentions obsolètes concernant la profondeur limitée (`depth=1`) et les stratégies de lecture partielle (`head`/`tail`) dans la description de `<vault-structure>`.
     -   **Références Indirectes :** Mise à jour des prompts de `concat_tool`, `move_tool` et `env_prompt` pour éliminer les suggestions d'utiliser `tree`. Les agents sont désormais orientés exclusivement vers l'usage de `read` et `search` pour l'exploration.
+
+### ✅ **Phase 3 : Refonte des Prompts d'Environnement et de Boucle Agentique**
+
+-   **Restructuration de l'Environnement (`core/agent/prompts/env_prompt.py`) :**
+    -   **Arbre ASCII visuel (`<vault-layout>`) :** Remplacement des longues descriptions textuelles par une représentation visuelle canonique de la hiérarchie du vault. Ajout d'annotations inline (`←`) pour une compréhension immédiate du rôle de chaque dossier/fichier. Retrait définitif de `tree.md` de cette structure statique.
+    -   **Références denses (`<file-reference>`) :** Compression drastique des descriptions de fichiers (Root, Project, Inbox, Bucket) en 1 à 2 lignes concises, éliminant la prose redondante.
+    -   **Spécifications de formats (`<formats>`) :** Intégration d'exemples de code concrets inline pour dicter la structure attendue : Changelogs (H1 pour la date, H2 pour l'entrée, tag `[décision]`), Tasks (métadonnées inline sous le H1), et Frontmatter (avec la consigne stricte de laisser le background job le gérer).
+    -   **Indexation de recherche (`<search-index>`) :** Transformation des explications verbeuses en une liste binaire ultra-scannable (✓ Indexé / ✗ Non indexé) justifiant l'usage de `search` vs `read`.
+    -   **Fusion du Contexte Initial (`<initial-context>`) :** Migration complète du contenu de l'ancien `context_prompt.py` directement à la fin de l'environnement. Définit clairement les 4 blocs injectés au démarrage (`<date>`, `<overview>`, `<vault-structure>`, `<profile>`).
+
+-   **Philosophie de la Boucle Agentique (`core/agent/prompts/agent_loop_prompt.py`) :**
+    -   **Philosophie de chargement généreux (`<context-loading-philosophy>`) :** Introduction d'un changement de paradigme majeur. Le prompt explique désormais explicitement pourquoi les tâches de connaissance (contrairement à la génération de code) bénéficient d'un contexte massif pour améliorer le raisonnement, le routage et la détection de contradictions.
+    -   **Seuil opérationnel des 150k tokens :** Instruction donnée à l'agent de charger les fichiers sans aucune hésitation ni micro-optimisation tant que le contexte actif reste sous les 150k tokens. Au-delà, l'agent doit basculer sur une stratégie sélective via `search`.
+    -   **Mécanique de boucle (`<loop-mechanics>`) :** Obligation d'analyser la carte initiale (overview/vault-structure) avant le premier appel outil, directive de "batcher" les lectures pour maximiser la vitesse, et nécessité d'itérer avec de nouveaux angles si la première passe échoue.
+    -   **Conditions d'arrêt (`<stopping>`) :** Définition stricte de la fin de tâche : l'agent doit s'arrêter dès que sa réponse est ancrée dans les données lues, sans sur-explorer. Autorisation explicite de répondre qu'une information est introuvable si le vault ne la contient pas.
+
+-   **Nettoyage et Architecture des Prompts :**
+    -   **Suppression de `core/agent/prompts/context_prompt.py` :** Fichier vidé et retiré de l'architecture suite à la migration de son contenu vers `env_prompt.py`.
+    -   **Mise à jour des Agents (`search_agent_prompt.py` & `update_agent_prompt.py`) :** Retrait des imports obsolètes et de l'injection de `INITIAL_CONTEXT_PROMPT`. Les agents héritent désormais de l'intégralité du contexte via le seul import de `ENVIRONMENT_PROMPT`.
