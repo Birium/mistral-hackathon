@@ -1,6 +1,6 @@
 """Concat tool — assemble files for final output."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.concat import concat as _concat_impl
 
 
@@ -21,39 +21,40 @@ ConcatTool = BaseTool(concat)
 
 CONCAT_TOOL_PROMPT = """\
 <concat-tool>
-Concat is your finalization tool. It assembles an ordered list of vault files into
-a single structured markdown document where each file becomes a fenced code block
-prefixed by its path, with line numbers.
+Concat assembles an ordered list of vault files into a single structured markdown
+document. Each file becomes a fenced code block prefixed by its path, with line
+numbers. It is your finalization tool — call it once, as the very last action.
 
-**How the system uses concat output:**
-When you call concat, the system automatically captures its result and appends it
-to your text response to form the final answer. You do not need to format or include
-the file contents yourself. The final answer the user receives is:
+<how-it-works>
+When you call concat, the system captures its result and appends it to your text
+overview automatically. The final response the user receives is:
 
   [your text overview]
-  [concat result, appended automatically by the system]
+  [concat result, appended by the system]
 
-This means your job is simple: write your overview as plain text, then call concat
-once with the files that answer the question. The system handles the rest.
+Write your overview as plain text, then call concat. The system handles assembly.
+</how-it-works>
 
-**Rules:**
-Call concat once, as the very last action of your session. After calling concat, you will produce your overview without any tool calls. 
-The system will append the concat result to your overview to create the final answer.
+<rules>
+Call concat once, as your final action. After calling concat, produce your text
+overview — no further tool calls. The system appends the concat result to complete
+the response.
 
-Only concat files you actually retrieved during the session via search, read, or tree.
-Never pass a path you haven't confirmed exists.
+Only include files you actually retrieved during the session via search or read.
+Never pass a path you have not confirmed exists.
 
-If you found no relevant files — your search returned nothing, your reads yielded no
-matching content — do not call concat. Return only your text overview explaining what
-you searched, where you looked, and that no matching information was found.
+If you found no relevant files, do not call concat. Return only your text overview
+explaining what you searched and that nothing matched.
+</rules>
 
-**Ordering:**
-Order files by direct relevance to the question — most relevant first.
-A state.md that directly answers "where does this project stand?" goes before a changelog
-that provides supporting history.
+<ordering>
+Order by direct relevance — most relevant first. A state.md that directly answers
+the question goes before a changelog that provides supporting history.
+</ordering>
 
-**Line ranges:**
-Each file entry can include an optional `lines` field (format: "N-M") to extract only
-a specific range instead of the full file. Use this when you identified the relevant
-section via search chunks and don't need the entire file.
+<line-ranges>
+Each file entry accepts an optional `lines` field (format: `"N-M"`) to extract only
+a specific range. Use when a search chunk identified the exact section you need and
+the full file would add unnecessary context.
+</line-ranges>
 </concat-tool>"""
