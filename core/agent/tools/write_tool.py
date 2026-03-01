@@ -1,6 +1,6 @@
 """Write tool — create or overwrite files."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.write import write as _write_impl
 
 

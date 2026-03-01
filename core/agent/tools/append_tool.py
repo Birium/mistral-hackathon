@@ -1,6 +1,6 @@
 """Append tool — insert content at the top or bottom of a file."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.appender import append as _append_impl
 
 

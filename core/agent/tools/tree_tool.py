@@ -1,7 +1,7 @@
 """Tree tool — explore vault structure."""
 
 from typing import Optional
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.utils import _resolve_path
 from functions.tree import get_tree as _tree_impl
 

@@ -1,6 +1,6 @@
 """Move tool — relocate files or folders."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.move import move as _move_impl
 
 

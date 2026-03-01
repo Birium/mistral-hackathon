@@ -1,6 +1,6 @@
 """Delete tool — permanently remove files or folders."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.delete import delete as _delete_impl
 
 

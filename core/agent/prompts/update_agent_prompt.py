@@ -1,4 +1,6 @@
-from .env_prompt import ENVIRONMENT_PROMPT, AGENTIC_MODEL_PROMPT, INITIAL_CONTEXT_PROMPT
+from .env_prompt import ENVIRONMENT_PROMPT
+from .agent_loop_prompt import AGENTIC_MODEL_PROMPT
+from .context_prompt import INITIAL_CONTEXT_PROMPT
 from agent.tools.search_tool import SEARCH_TOOL_PROMPT
 from agent.tools.read_tool import READ_TOOL_PROMPT
 from agent.tools.tree_tool import TREE_TOOL_PROMPT

@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Optional, List
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.search import search as _search_impl
 
 logger = logging.getLogger(__name__)

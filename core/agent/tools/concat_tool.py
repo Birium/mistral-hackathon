@@ -1,6 +1,6 @@
 """Concat tool — assemble files for final output."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.concat import concat as _concat_impl
 
 

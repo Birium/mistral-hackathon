@@ -1,7 +1,7 @@
 """Read tool — retrieve file content from the vault with line numbers."""
 
 from typing import Optional
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.read import read as _read_impl
 
 

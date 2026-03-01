@@ -1,6 +1,6 @@
 """Edit tool — surgically replace text in a file."""
 
-from agent.tools.tool_base import BaseTool
+from agent.tools.base_tool import BaseTool
 from functions.edit import edit as _edit_impl
 
 
