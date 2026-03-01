@@ -24,3 +24,10 @@
 -   **Émission de la Réponse Unique :**
     -   **Event Final Unifié :** L'agent émet un seul et unique événement `answer` (`id="final"`) contenant la totalité de la réponse (Texte explicatif + Contenu brut des fichiers).
     -   **[`core/agent/agent/search_agent.py`] :** Implémentation de la logique de filtrage, d'accumulation et d'assemblage dans la méthode `process`. Cela garantit que l'API et le frontend reçoivent un payload markdown complet et cohérent, simplifiant grandement le traitement côté client.
+
+### ✅ **Phase 3 : Nettoyage et Standardisation du Format de Sortie `concat`**
+
+-   **Raffinement de l'Affichage des Tools :**
+    -   **Simplification des En-têtes de Blocs :** Modification de la logique de génération des code fences dans le tool `concat`. Suppression de l'annotation dynamique `(lines N-M)` dans le header du bloc markdown. Désormais, seul le chemin du fichier est utilisé comme identifiant de langage, ce qui garantit une compatibilité maximale avec les parseurs markdown et évite la redondance d'information (les numéros de ligne étant déjà explicites dans le contenu).
+    -   **Harmonisation Visuelle :** Ajustement du formatage des numéros de ligne dans `_format_lines`. Passage de 1 à 2 espaces avant le séparateur vertical (`|`), alignant ainsi strictement le style visuel de `concat` sur celui du tool `read`. Cela assure une cohérence parfaite de la présentation des fichiers, quelle que soit la méthode d'accès utilisée par l'agent.
+    -   **[`core/functions/concat/concat.py`] :** Mise à jour des fonctions `_format_lines` et `concat` pour implémenter ces changements de formatage.
