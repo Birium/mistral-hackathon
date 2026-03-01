@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { fetchFile } from '@/api'
 import { useTree } from '@/hooks/useTree'
@@ -62,12 +61,8 @@ export function FileView() {
     )
   if (content === null) return <LoadingState message="Loading file…" />
 
-  const segments = path.split('/').filter(Boolean)
-
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto">
-      <Breadcrumb segments={segments} className="mb-4" />
-
       <div className="max-w-2xl">
         <MarkdownRenderer content={content} />
       </div>
