@@ -38,31 +38,31 @@ export function AIPromptInput({
   }
 
   return (
-    <div
-      className="space-y-6"
-    >
-      {chatMode === 'answering' && answeringRef && (
-        <AnsweringBanner answeringRef={answeringRef} onCancel={onCancelReply} />
-      )}
-      <PromptInput onSubmit={handleSubmit} className="max-w-2xl">
-        <PromptInputBody>
-          <PromptInputTextarea
-            value={value}
-            placeholder={chatMode === 'search' ? 'Search the vault...' : 'Send an update...'}
-            onChange={(e) => onChange(e.target.value)}
-            disabled={disabled}
-          />
-        </PromptInputBody>
-        <PromptInputFooter>
-          <PromptInputTools>
-            <ModeToggle
-              mode={chatMode}
-              onChange={onModeChange}
-              disabled={chatMode === 'answering'}
+    <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 px-4 pb-4 pt-12">
+      <div className="w-full max-w-2xl pointer-events-auto flex flex-col gap-2">
+        {chatMode === 'answering' && answeringRef && (
+          <AnsweringBanner answeringRef={answeringRef} onCancel={onCancelReply} />
+        )}
+        <PromptInput onSubmit={handleSubmit} className="w-full shadow-lg">
+          <PromptInputBody>
+            <PromptInputTextarea
+              value={value}
+              placeholder={chatMode === 'search' ? 'Search the vault...' : 'Send an update...'}
+              onChange={(e) => onChange(e.target.value)}
+              disabled={disabled}
             />
-          </PromptInputTools>
-        </PromptInputFooter>
-      </PromptInput>
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputTools>
+              <ModeToggle
+                mode={chatMode}
+                onChange={onModeChange}
+                disabled={chatMode === 'answering'}
+              />
+            </PromptInputTools>
+          </PromptInputFooter>
+        </PromptInput>
+      </div>
     </div>
   )
 }
