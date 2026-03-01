@@ -10,6 +10,8 @@ Your context follows you across Mistral, Claude, Gemini, and whatever comes next
 
 ![Knower Schema](docs/knower-as-hub.svg)
 
+</div>
+
 **Quick start** — try it in 60 seconds:
 
 ```bash
@@ -18,8 +20,6 @@ git clone git@github.com:Birium/mistral-hackathon.git && cd knower
 knower config vault ~/my-vault
 knower start                        # http://localhost:8000
 ```
-
-</div>
 
 ---
 
