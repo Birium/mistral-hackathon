@@ -97,7 +97,7 @@ export const FileTree = ({
 
 interface FileTreeFolderContextType {
   path: string;
-  name: string;
+  name: string | ReactNode;
   isExpanded: boolean;
 }
 
@@ -109,7 +109,7 @@ const FileTreeFolderContext = createContext<FileTreeFolderContextType>({
 
 export type FileTreeFolderProps = HTMLAttributes<HTMLDivElement> & {
   path: string;
-  name: string;
+  name: string | ReactNode;
   label?: ReactNode;
 };
 

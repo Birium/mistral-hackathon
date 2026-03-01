@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, type MouseEvent, type ReactEventHandler } from 'react'
+import { Eye } from 'lucide-react'
 import type { TreeNode } from '@/types'
 import {
   FileTree,
@@ -10,6 +11,7 @@ interface AiFileTreeProps {
   nodes: TreeNode[]
   selectedPath: string | null
   onSelectFile: (path: string) => void
+  onSelectFolder?: (path: string) => void
 }
 
 function collectDirectoryPaths(
@@ -25,12 +27,55 @@ function collectDirectoryPaths(
   return result
 }
 
-function renderNodes(nodes: TreeNode[]): React.ReactNode {
+function FolderName({
+  name,
+  path,
+  onNavigate,
+}: {
+  name: string
+  path: string
+  onNavigate?: (path: string) => void
+}) {
+  const handleClick = (e: MouseEvent) => {
+    e.stopPropagation()
+    onNavigate?.(path)
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 group/folder">
+      {name}
+      {onNavigate && (
+        <button
+          onClick={handleClick}
+          className="opacity-0 group-hover/folder:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
+          title="Open folder view"
+        >
+          <Eye className="h-3 w-3 text-muted-foreground" />
+        </button>
+      )}
+    </span>
+  )
+}
+
+function renderNodes(
+  nodes: TreeNode[],
+  onSelectFolder?: (path: string) => void,
+): React.ReactNode {
   return nodes.map((node) => {
     if (node.type === 'directory') {
       return (
-        <FileTreeFolder key={node.path} path={node.path} name={node.name}>
-          {renderNodes(node.children ?? [])}
+        <FileTreeFolder
+          key={node.path}
+          path={node.path}
+          name={
+            <FolderName
+              name={node.name.replace(/\/$/, '')}
+              path={node.path}
+              onNavigate={onSelectFolder}
+            />
+          }
+        >
+          {renderNodes(node.children ?? [], onSelectFolder)}
         </FileTreeFolder>
       )
     }
@@ -42,6 +87,7 @@ export function AiFileTree({
   nodes,
   selectedPath,
   onSelectFile,
+  onSelectFolder,
 }: AiFileTreeProps) {
   const defaultExpanded = new Set(
     nodes.filter((n) => n.type === 'directory').map((n) => n.path),
@@ -49,8 +95,7 @@ export function AiFileTree({
 
   const directoryPaths = useMemo(() => collectDirectoryPaths(nodes), [nodes])
 
-  const handleSelect = (path: string) => {
-    // Only navigate for files — folders just expand/collapse via the tree component
+  const handleSelect: ReactEventHandler<HTMLDivElement> & ((path: string) => void) = (path: string) => {
     if (!directoryPaths.has(path)) {
       onSelectFile(path)
     }
@@ -63,7 +108,7 @@ export function AiFileTree({
       onSelect={handleSelect}
       className="border-none rounded-none bg-transparent p-0 font-sans text-sm"
     >
-      {renderNodes(nodes)}
+      {renderNodes(nodes, onSelectFolder)}
     </FileTree>
   )
 }

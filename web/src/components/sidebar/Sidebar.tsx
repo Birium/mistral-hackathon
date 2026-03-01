@@ -16,10 +16,13 @@ export function Sidebar() {
 
   const children = treeData?.children ?? []
 
-  // Derive selected path from the current URL: /file/some/path.md → some/path.md
   const selectedPath = location.pathname.startsWith('/file/')
     ? location.pathname.replace(/^\/file\//, '')
     : null
+
+  const handleSelectFolder = (path: string) => {
+    navigate(`/folder/${path.replace(/\/$/, '')}`)
+  }
 
   return (
     <div className="w-72 h-full border-r flex flex-col shrink-0">
@@ -34,6 +37,7 @@ export function Sidebar() {
           nodes={children}
           selectedPath={selectedPath}
           onSelectFile={navigateToFile}
+          onSelectFolder={handleSelectFolder}
         />
       </div>
       <Separator />
