@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ChevronRight, Folder, FileText } from 'lucide-react'
+import { Folder, FileText } from 'lucide-react'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import type { TreeNode } from '@/types'
 import { useTree } from '@/contexts/TreeContext'
 
@@ -60,28 +61,7 @@ export function FolderView() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-6 flex-wrap">
-        {segments.map((seg, i) => {
-          const isLast = i === segments.length - 1
-          const segPath = segments.slice(0, i + 1).join('/')
-          return (
-            <span key={segPath} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3.5 w-3.5" />}
-              {isLast ? (
-                <span className="text-foreground font-medium">{seg}</span>
-              ) : (
-                <button
-                  onClick={() => navigate(`/folder/${segPath}`)}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {seg}
-                </button>
-              )}
-            </span>
-          )
-        })}
-      </nav>
+      <Breadcrumb segments={segments} className="mb-6" />
 
       {!folderNode ? (
         <p className="text-muted-foreground text-sm">Folder not found.</p>
