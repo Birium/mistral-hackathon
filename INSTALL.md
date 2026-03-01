@@ -82,7 +82,7 @@ permission = "always"
 ### Claude Code
 
 ```bash
-claude mcp add knower --transport sse http://localhost:8000/mcp/sse
+claude mcp add knower --transport http http://localhost:8000/mcp
 ```
 
 ### Open Code
