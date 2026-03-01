@@ -151,26 +151,7 @@ Both agents run inside a **base agentic loop** (`BaseAgent`) that handles tool-c
 
 Knower uses [**QMD**](https://github.com/tobilu/qmd) as its local search engine. No external API, no cloud — everything runs on your machine.
 
-The pipeline:
-
-```
-User query
-    ↓
-Query Expansion ─── fine-tuned Qwen3 1.7B + LoRA
-    ├── HyDE     → hypothetical document snippet
-    ├── Vec      → dense retrieval sentences (×3)
-    └── Lex      → BM25 keyword expansions
-    ↓
-Parallel Search ─── 3 expanded queries × 2 modes
-    ├── BM25  (keyword, instant)
-    └── Vector (semantic, GGUF embeddings)
-    ↓
-Reciprocal Rank Fusion + top-rank bonus
-    ↓
-LLM Reranker ─── local 0.6B model
-    ↓
-Final ranked results
-```
+![QMD pipeline](docs/qmd-pipeline.png)
 
 #### QMD Models
 
