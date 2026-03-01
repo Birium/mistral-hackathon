@@ -25,10 +25,37 @@ WriteTool = BaseTool(write)
 WRITE_TOOL_PROMPT = """\
 <write-tool>
 Write creates a new file or completely replaces an existing one. The entire content
-is yours to define. Parent directories are created automatically if needed.
+is yours to define. Parent directories are created automatically — any path you
+provide will work, even if none of the intermediate folders exist yet.
 
 Do not include frontmatter fields (`created`, `updated`, `tokens`) — the background
 job manages those after every write.
+
+<creating-structures>
+Write is your tool for creating complete file structures in a single sequence of
+calls. Every call creates its parent directories, so you can build an entire project
+or inbox item from scratch by writing its files one after another.
+
+New project — call write once per file:
+  `write("projects/new-project/description.md", ...)`
+  `write("projects/new-project/state.md", ...)`
+  `write("projects/new-project/tasks.md", ...)`
+  `write("projects/new-project/changelog.md", ...)`
+The `projects/new-project/` folder and any parents are created on the first call.
+The `bucket/` subfolder is created whenever a bucket file is first written.
+
+New inbox item — same principle:
+  `write("inbox/2025-07-14-description-courte/review.md", ...)`
+  `write("inbox/2025-07-14-description-courte/original-content.md", ...)`
+The `inbox/2025-07-14-description-courte/` folder is created automatically.
+
+New bucket file at any level:
+  `write("bucket/email-client-2025-07.md", ...)`
+  `write("projects/startup-x/bucket/meeting-notes-july.md", ...)`
+
+Never hesitate to create the full structure in one pass. Multiple sequential writes
+is the intended pattern for new projects and inbox items.
+</creating-structures>
 
 <when>
 Creating a file that does not exist yet — a new project's description.md, a new
