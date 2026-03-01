@@ -274,8 +274,6 @@ API  →  any script, any program (POST /update, POST /search)
 CLI  →  you, directly, no intermediary
 ```
 
-In production, the React frontend is served statically by FastAPI — **single process on port 8000**. Two MCP tools exposed: `update(content)` and `search(content)`.
-
 ---
 
 ## Stack
